@@ -71,7 +71,12 @@ muprmn  <- mu
 d    <- data.frame(Xmu)
 out  <- ComputeMST(d)
 
-b0 <- min(dist(X)^2/p) #I will check dist(X)
+disX <- array(dist(X)^2)
+if(sum(disX==0)){
+  disX <- disX[-which(disX==0)] 
+}
+
+b0 <- (disX/p) #I will check dist(X)
 a0 <- 2
 
 B <- matrix(0, n+1, n)
@@ -150,7 +155,12 @@ while(itr < Total_itr){
   ind0 <- which(B[1, ]!=0)
   sum1 <- 0
   for(i in 1:p){
-    sum1 <- sum1 + sum((colSums(B[-1,-ind0]*X[, i]))^2) 
+    if(length(ind0) < (n-1)){
+      sum1 <- sum1 + sum((colSums(B[-1,-ind0]*X[, i]))^2) 
+    }
+    if(length(ind0) == (n-1)){
+      sum1 <- sum1 + sum(((B[-1,-ind0]*X[, i]))^2) 
+    }
   }
   ap = a0 + n/2 - length(ind0) / 2
   bp = b0 + sum1/2
