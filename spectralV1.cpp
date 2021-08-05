@@ -58,24 +58,27 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, 
     rowvec B2invi = B2inv.row(i);
     B2invi = B2invi.cols(indexi);
     B2i  = B2invii - B2invi.t() * B2invi/B2inv(i,i);
+    //Calculation of beta to identify the partitions
     beta = B.col(i)- Bminusi * B2i * Biminusi;
-    
+    //subtract the mean beta = beta - ;
     vec indP = indexf.elem( find(beta > 0) );
     vec indN = indexf.elem( find(beta < 0) );
-      
+    
     //beta.elem( find(beta > 0) ).ones();
     //beta.elem( find(beta < 0) ).zeros();
-
+    
     //uvec indN = find(beta < 0);
     //uvec indP = find(beta > 0);
-
+    
     //cube bigmat(indN.size(), indP.size(), Totalcls, fill::zeros); 
     
+    //Identify the two node associated with i-th edge
     uvec indNZ = find(Bi != 0);
     
     uword flagN=0; uword flagP=0;
     uword vbbar=0;
     
+    //To identify the partition with root node
     if(prod(indN)==0){flagN=1;}
     if(prod(indP)==0){flagP=1;}
     
@@ -84,9 +87,9 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, 
       uword indred = indNZ(1);
       //uvec clsred = find(clsno == clsno(indred));
       uword indexch = clsno(indred-1)-1;
-      clsmem(indexch) = clsmem(indexch)-indP.size();
-      vbbar = indP.size();
-      }
+      clsmem(indexch) = clsmem(indexch)-indP.size(); //updating the number of members
+      vbbar = indP.size(); //cardinality of vb
+    }
     
     if(flagP==1){
       uword indred = indNZ(1);
@@ -108,9 +111,9 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, 
     for(j =0 ; j<indN.size(); j++){
       for(k =0 ; k<indP.size(); k++){
         for(l =0 ; l < Totalcls; l++){
-          if(indN(j)*indP(k) > 0){
+          if(indN(j)*indP(k) > 0){ //To check whether either of them is a root node
             gumgen = arma::randu();
-            temp = accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)),2))/lam;
+            temp = accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)),2))/(2*lam) - p*log(2*3.14*lam)/2;//normal density part
             if(flagN==1){
               uword tindex = indN(j)-1;
               other = clsno(tindex)-1;}
@@ -118,18 +121,27 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, 
               uword tindex = indP(k)-1;
               other = clsno(tindex)-1;}
             if(other == l){
-              temp = -temp/2 - p*log(2*3.14*lam)/2-log(-log(gumgen))+vbbar*log(wl(other));
               temp = temp-(clsmem(other)+vbbar-2)*log(clsmem(other)+vbbar)+(clsmem(other)-2)*log(clsmem(other));
+              //multi = 0;
+              if(clsmem(other)+vbbar-2 < 0){
+                temp = temp + (clsmem(other)+vbbar-2)*log(clsmem(other)+vbbar);
+              }
+              if(clsmem(other)-2 < 0){
+                temp = temp - (clsmem(other)-2)*log(clsmem(other)); 
+              }
               //bigmat(j, k, l) = temp;
+              //clsmem is the vector of length K with number of classes.
               payoff=temp;
             }
           }
-          if(indN(j)*indP(k) == 0){
+          if(indN(j)*indP(k) == 0){ //To check whether either of them is a root node
             gumgen = arma::randu();
             //temp = accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)), 2))/tau;
             if(clsmem(l)==0){
               temp = -log(unilength)-log(-log(gumgen))+vbbar*log(wl(l));
-              temp = temp-(vbbar-2)*log(vbbar);
+              if(vbbar>2){
+                temp = temp+(vbbar-2)*log(vbbar);
+              }
               //bigmat(j, k, l) = temp;
               payoff=temp;
             }
@@ -142,7 +154,7 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, 
         }
         //sum1 = sum1 + bigmat(j, k);
       }
-   }
+    }
     
     
     ////vec u = randu<vec>(5);//-R::rexp(1.0);
@@ -161,13 +173,13 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, 
     
     
     colvec veci = zeros(n+1);
-
+    
     //int kk = 1; int jj=1;
     veci(indP(selectk)) = 1;
     veci(indN(selectj)) = -1;
     
     B.col(i) = veci;
-    clsmem(selectl) = clsmem(selectl) + vbbar;
+    clsmem(selectl) = clsmem(selectl) + vbbar; //Update with selected class
     // beta1=arma::conv_to<arma::vec>::from(indP);
     uword tindex;
     if(flagN==1){
@@ -175,17 +187,18 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, 
         tindex = indP(ll)-1;
         clsno(tindex)=selectl+1;
       }
-      }
+    }
     if(flagP==1){
       for(uword ll = 0 ; ll < indN.size(); ll++){
         tindex = indN(ll)-1;
         clsno(tindex)=selectl+1;
       }
-      }
+    }
     
     //B(indP.elem(k), i) = 1;
     //B(indN.elem(j), i) = -1;
-
+    
+    //Updating B2inv
     Biminusi = Bminusi.t() * veci;
     double st1 = accu(veci%veci);
     vec    st21 = B2i*Biminusi;
@@ -198,7 +211,7 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, 
     B2inv.row(i) = st4.t();
     B2inv.col(i) = st4;
     B2inv(indexi,indexi) = B2i+temp1*temp1.t()/B2inv(i,i);
- 
+    
     
     if(i > 0){indexi(i-1) = i;}
   }

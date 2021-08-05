@@ -42,7 +42,7 @@ library(bmixture)
 
 Ugamma <- function(gamma){
   fitK <- sum(B[1, ]!=0)
-  ret <- -(p*K+2)*log(gamma)-1/gamma
+  ret <- -(p*K+2)*log(gamma)-1/gamma 
   
   return(ret)
 }
@@ -70,6 +70,9 @@ muprmn  <- mu
 
 d    <- data.frame(Xmu)
 out  <- ComputeMST(d)
+
+b0 <- min(dist(X)^2/p) #I will check dist(X)
+a0 <- 2
 
 B <- matrix(0, n+1, n)
 
@@ -124,7 +127,7 @@ for(i in 1:p){
   d[i] <- max(max(abs(X[,i]))-mean(X[,i]), mean(X[,i])-min(abs(X[,i])))
 }
 
-gamma <- 1.5
+gamma <- 1
 
 gamsd <- 1e-2
 argam <- 0
@@ -149,26 +152,27 @@ while(itr < Total_itr){
   for(i in 1:p){
     sum1 <- sum1 + sum((colSums(B[-1,-ind0]*X[, i]))^2) 
   }
-  ap = 0.1 + length(n)/2 - length(ind0) / 2
-  bp = 0.1 + sum1/2
+  ap = a0 + n/2 - length(ind0) / 2
+  bp = b0 + sum1/2
   
   lam = 1/rgamma(1, ap, bp)
   
   #update wl
   wl <- rdirichlet(1, rep(alpha, K) + clsmem)
   
-  #update gamma
-  gammac <- gamma + rnorm(1, sd = gamsd)
-  gammac <- max(1, gammac)
-  
-  D    <- Ugamma(gammac) - Ugamma(gamma)
-  if(is.nan(D)){D=-Inf}
-  if(is.na(D)){D=-Inf}
-  
-  if(D > log(runif(1))){
-    argam <- argam + 1
-    gamma <- gammac
-  }
+  #update gamma using MH
+  # temp <- log(sqrt(gamma)) + rnorm(1, sd = gamsd)
+  # gammac <- exp(temp^2)
+  # #gammac <- max(1.0001, gammac)
+  # 
+  # D    <- Ugamma(gammac) - Ugamma(gamma)
+  # if(is.nan(D)){D=-Inf}
+  # if(is.na(D)){D=-Inf}
+  # 
+  # if(D > log(runif(1))){
+  #   argam <- argam + 1
+  #   gamma <- gammac
+  # }
   
   
   if(itr > 2000){
@@ -176,11 +180,11 @@ while(itr < Total_itr){
     Bp <- Bp + B
   }
   
-  if(itr %% 100 == 0){
-    ar <- argam/ itr
-    if(ar<.20){sdgam <- sdgam * (.5)}
-    if(ar>.40){sdgam <- sdgam * (2)}
-  }
+  # if(itr %% 100 == 0){
+  #   ar <- argam/ itr
+  #   if(ar<.20){sdgam <- sdgam * (.5)}
+  #   if(ar>.40){sdgam <- sdgam * (2)}
+  # }
   #update B2inv
   print(itr)
   #print(tau)
