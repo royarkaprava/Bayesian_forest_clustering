@@ -50,7 +50,7 @@ Ugamma <- function(gamma){
 #initialization
 
 lam   <- 1 #variance for other conditional edges
-muprvar <- 0.1 # prior variance for \mu
+#muprvar <- 0.1 # prior variance for \mu
 
 p     <- ncol(X)
 n     <- nrow(X)
@@ -134,12 +134,12 @@ while(itr < Total_itr){
   
   #update B
   #beta = rep(0, 401)
-  #j=0; k=0
-  P=1
-  N <- rep(1,200)
-  b <- rep(1, 401)
+  #j=0; k=0 
+  # P=1
+  # N <- rep(1,200)
+  # b <- rep(1, 401)
   
-  #update B
+  #update B, here 'b' is useless. I added for debugging.
   BupC(B, B2inv, clslb, clsmem, b, wl, lam, 2^p*gamma^p*prod(d), Xmu)
   A <- getA(B)
   
