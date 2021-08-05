@@ -136,7 +136,8 @@ clusteringFP <- function(X, K=20, Total_itr = 10000){
     P=1
     N <- rep(1,200)
     b <- rep(1, 401)
-    #bigmat <- array(0, dim=c(200,201,20))
+    
+    #update B
     BupC(B, B2inv, clslb, clsmem, b, wl, lam, 2^p*gamma^p*prod(d), Xmu)
     A <- getA(B)
     
