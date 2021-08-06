@@ -104,6 +104,8 @@ path <- NetworkToolbox::pathlengths(A[-1,-1]) #shortest path length
 clsno <- which(B[1, ] != 0)
 l <- 1
 clslb <- rep(0, n)
+clslbp <- clslb
+
 for(k in clsno){
   temp <- which(B[-1, k] != 0)
   indcompo <- which(pathmat[temp, ] < Inf)
@@ -128,6 +130,7 @@ classMat <- matrix(0, n, K)
 classMat[cbind(1:n, clslb[1:n])] <- rep(1, n)
 
 clsmem <- rep(0, K)
+clsmemp <- clsmem
 for(k in 1:K){
   clsmem[k] <- length(which(clslb==k))
 }
@@ -196,6 +199,8 @@ while(itr < Total_itr){
   if(itr > 2000){
     Ap <- Ap+A 
     Bp <- Bp + B
+    clslbp  <- clslbp + clslb
+    clsmemp <- clsmemp + clsmem
   }
   
   # if(itr %% 100 == 0){
