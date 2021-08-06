@@ -76,7 +76,7 @@ if(sum(disX==0)){
   disX <- disX[-which(disX==0)] 
 }
 
-b0 <- (disX/p) #I will check dist(X)
+b0 <- min(disX/p) #I will check dist(X)
 a0 <- 2
 
 B <- matrix(0, n+1, n)
@@ -143,12 +143,12 @@ while(itr < Total_itr){
   #update B
   #beta = rep(0, 401)
   #j=0; k=0 
-  # P=1
-  # N <- rep(1,200)
-  # b <- rep(1, 401)
-  
+  #P=rep(1, 201)
+  #N <- rep(1,200)
+  b <- rep(1,401)
+  b1 <- b
   #update B, here 'b' is useless. I added for debugging.
-  BupC(B, B2inv, clslb, clsmem, b, wl, lam, 2^p*gamma^p*prod(d), Xmu)
+  BupC(B, B2inv, clslb, clsmem, b1,b, wl, lam, 2^p*gamma^p*prod(d), Xmu)
   A <- getA(B)
   
   ####Update lam
