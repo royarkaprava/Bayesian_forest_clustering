@@ -40,6 +40,8 @@ library(bmixture)
 
 #clusteringFP <- function(X, K=20, Total_itr = 10000){
 
+K=20
+
 Ugamma <- function(gamma){
   fitK <- sum(B[1, ]!=0)
   ret <- -(p*K+2)*log(gamma)-1/gamma 
@@ -47,9 +49,15 @@ Ugamma <- function(gamma){
   return(ret)
 }
 
+getA <- function(B){
+  A = - B %*% t(B)
+  diag(A) <- 0
+  
+  return(A) 
+}
 #initialization
 
-lam   <- 1 #variance for other conditional edges
+lam   <- 0.1 #variance for other conditional edges
 #muprvar <- 0.1 # prior variance for \mu
 
 p     <- ncol(X)
