@@ -38,7 +38,7 @@ using namespace arma;
 
 // [[Rcpp::export]]
 
-void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, const double lam, const double unilength, const mat &Xmu) {
+void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, const vec wl, const double lam, const double unilength, const mat &Xmu) {
   unsigned int n = B.n_cols;
   unsigned int p = Xmu.n_cols;
   uword Totalcls=clsmem.size();
@@ -59,10 +59,13 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, 
     B2invi = B2invi.cols(indexi);
     B2i  = B2invii - B2invi.t() * B2invi/B2inv(i,i);
     //Calculation of beta to identify the partitions
-    beta = B.col(i)- Bminusi * B2i * Biminusi;
+    beta1 = B.col(i)- Bminusi * B2i * Biminusi;
     //subtract the mean beta = beta - ;
-    vec indP = indexf.elem( find(beta > 0) );
-    vec indN = indexf.elem( find(beta < 0) );
+    beta1 = round(beta1*100000);
+    double ubeta = mean(unique(beta1));
+    beta = beta1 - ubeta; 
+    vec indP = indexf.elem( find(beta > 0));//== beta(0)));//== ubeta(0)) ); //
+    vec indN = indexf.elem( find(beta < 0));//!= beta(0)));//== ubeta(1)) ); 
     
     //beta.elem( find(beta > 0) ).ones();
     //beta.elem( find(beta < 0) ).zeros();
@@ -75,7 +78,7 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, const vec wl, 
     //Identify the two node associated with i-th edge
     uvec indNZ = find(Bi != 0);
     
-    uword flagN=0; uword flagP=0;
+    int flagN=0; int flagP=0;
     uword vbbar=0;
     
     //To identify the partition with root node
