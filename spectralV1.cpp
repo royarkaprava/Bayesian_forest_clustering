@@ -48,7 +48,7 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, co
   uvec indexi = regspace<uvec>(1,  1,  n-1);
   vec indexf = regspace<vec>(0,  1,  n);
   double temp;
-  uword i=n-1;
+  uword i=0;
   for(i=0; i < n; i++){
     vec Bi = B.col(i);
     if(i > 0){indexi(i-1) = 0;}
@@ -61,7 +61,7 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, co
     //Calculation of beta to identify the partitions
     beta1 = B.col(i)- Bminusi * B2i * Biminusi;
     //subtract the mean beta = beta - ;
-    beta1 = round(beta1*100000);
+    beta1 = round(beta1*10000000);
     double ubeta = mean(unique(beta1));
     beta = beta1 - ubeta; 
     vec indP = indexf.elem( find(beta > 0));//== beta(0)));//== ubeta(0)) ); //
@@ -107,16 +107,17 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, co
     
     uword j=0;uword k=0;
     uword selectj=0; uword selectk=0; uword selectl=0;
-    double maxvalue = -9999999999999999999;//bigmat(0, 0, 0);
+    double maxvalue = -99999999;//bigmat(0, 0, 0);
     double payoff = 0;
     
     uword l=0;
     for(j =0 ; j<indN.size(); j++){
       for(k =0 ; k<indP.size(); k++){
         for(l =0 ; l < Totalcls; l++){
+          payoff = maxvalue;
           if(indN(j)*indP(k) > 0){ //To check whether either of them is a root node
             gumgen = arma::randu();
-            temp = accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)),2))/(2*lam) - p*log(2*3.14*lam)/2;//normal density part
+            temp = - accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)),2))/(2*lam) - p*log(2*3.14*lam)/2;//normal density part
             if(flagN==1){
               uword tindex = indN(j)-1;
               other = clsno(tindex)-1;}
@@ -124,6 +125,7 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, co
               uword tindex = indP(k)-1;
               other = clsno(tindex)-1;}
             if(other == l){
+              temp = temp+vbbar*log(wl(l))-log(-log(gumgen));
               temp = temp-(clsmem(other)+vbbar-2)*log(clsmem(other)+vbbar)+(clsmem(other)-2)*log(clsmem(other));
               //multi = 0;
               if(clsmem(other)+vbbar-2 < 0){
@@ -154,9 +156,22 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, co
             selectj = j;
             selectk = k;
             selectl = l;}
+          
+          if(j+k==0){
+            if(indN(j)*indP(k) > 0){
+              if(other == l){
+                maxvalue = payoff;
+              }
+            }
+            if(indN(j)*indP(k) == 0){
+              if(maxvalue == -99999999){
+                maxvalue = payoff;
+              } 
+            }
+          }
         }
-        //sum1 = sum1 + bigmat(j, k);
       }
+      //sum1 = sum1 + bigmat(j, k);
     }
     
     
@@ -178,6 +193,7 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, co
     colvec veci = zeros(n+1);
     
     //int kk = 1; int jj=1;
+    
     veci(indP(selectk)) = 1;
     veci(indN(selectj)) = -1;
     
