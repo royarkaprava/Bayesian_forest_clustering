@@ -26,9 +26,6 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   }
   #initialization
   
-  lam   <- 0.1 #variance for other conditional edges
-  #muprvar <- 0.1 # prior variance for \mu
-  
   p     <- ncol(X)
   n     <- nrow(X)
   # Xdis  <- as.matrix(exp(-dist(X)/10))
@@ -52,6 +49,9 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   if(sum(disX==0)){
     disX <- disX[-which(disX==0)] 
   }
+  
+  lam   <- min(disX[disX>0]) #variance for other conditional edges
+  #muprvar <- 0.1 # prior variance for \mu
   
   b0 <- min(disX/p) #I will check dist(X)
   a0 <- 2
@@ -142,15 +142,15 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
     sum1 <- 0
     for(i in 1:p){
       if(length(ind0) < (n-1)){
-        sum1 <- sum1 + sum((colSums(B[-1,-ind0]*X[, i]))^2) 
+        sum1 <- sum1 + sum((colSums(B[-1,-ind0]*X[, i]))^2)
       }
       if(length(ind0) == (n-1)){
-        sum1 <- sum1 + sum(((B[-1,-ind0]*X[, i]))^2) 
+        sum1 <- sum1 + sum(((B[-1,-ind0]*X[, i]))^2)
       }
     }
     ap = a0 + n/2 - length(ind0) / 2
     bp = b0 + sum1/2
-    
+
     lam = 1/rgamma(1, ap, bp)
     
     #update wl
