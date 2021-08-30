@@ -155,8 +155,8 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
     
     #update wl
     for(i in 1:(K-1)){
-      alpha.k <- alpha0 + clsmem[i]
-      beta.k  <- sum(clsmem[-(1:i)]) + 1
+      alpha.k <- 1 + clsmem[i]
+      beta.k  <- sum(clsmem[-(1:i)]) + alpha0
       
       beta[i] <- rbeta(1, alpha.k, beta.k)
     }
