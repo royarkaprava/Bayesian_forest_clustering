@@ -21,7 +21,7 @@ label <- as.numeric(label)
 
 ind1 <- which(label==1)
 ind2 <- which(label==2)
-locR <- loc[c(sample(ind1,200), sample(ind2, 200)), ]
+locR <- loc[c(sample(ind1,100), sample(ind2, 100)), ]
 X    <- locR
 
 #plot(X)
