@@ -81,6 +81,8 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   clslb <- rep(0, n)
   clslbp <- matrix(0, n, Total_itr-burn)#clslb
   
+  lam_ls<- numeric(length = Total_itr-burn )
+  
   for(k in clsno){
     temp <- which(B[-1, k] != 0)
     indcompo <- which(pathmat[temp, ] < Inf)
@@ -118,7 +120,7 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   d <- rep(0, p)
   
   for(i in 1:p){
-    d[i] <- max(max(abs(X[,i]))-mean(X[,i]), mean(X[,i])-min(abs(X[,i])))
+    d[i] <- (max(X[,i]) - min(X[,i]))/2 #max(max(abs(X[,i]))-mean(X[,i]), mean(X[,i])-min(abs(X[,i])))
   }
   
   gamma <- 1
@@ -207,6 +209,9 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
       clslbp[, itr-burn]  <- clslb  #Storing class labels from postburn samples
       clsmemp[, itr-burn] <- clsmem #Storing class sizes from postburn samples
       betap[, itr - burn] <- beta   #Storing the K-1 elements of stick-breaking prior after burn-in
+      
+      lam_ls[itr - burn] <- lam   #Storing the K-1 elements of stick-breaking prior after burn-in
+      
     }
     
     # if(itr %% 100 == 0){
@@ -224,6 +229,6 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   close(pb)
   Ap <- Ap / (Total_itr - burn)
   Bp <- Bp / (Total_itr - burn)
-  out <- list(estiadja = Ap, estiB = Bp, clslb_ls = clslbp, clssize_ls = clsmemp, stickbrkwts = betap)
+  out <- list(estiadja = Ap, estiB = Bp, clslb_ls = clslbp, clssize_ls = clsmemp, stickbrkwts = betap, lam_ls = lam_ls)
   return(out)
 }
