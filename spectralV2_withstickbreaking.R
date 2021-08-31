@@ -26,7 +26,6 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   }
   #initialization
   
-  lam   <- 0.1 #variance for other conditional edges
   #muprvar <- 0.1 # prior variance for \mu
   
   p     <- ncol(X)
@@ -48,10 +47,17 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   d    <- data.frame(Xmu)
   out  <- ComputeMST(d)
   
+  
+  DisMat2 <- as.matrix(dist(X)^2)
+  
   disX <- array(dist(X)^2)
   if(sum(disX==0)){
     disX <- disX[-which(disX==0)] 
   }
+  
+  
+  lam   <- min(disX) #variance for other conditional edges
+
   
   b0 <- min(disX/p) #I will check dist(X)
   a0 <- 2
@@ -138,20 +144,33 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
     A <- getA(B)
     
     ####Update lam
-    ind0 <- which(B[1, ]!=0)
-    sum1 <- 0
-    for(i in 1:p){
-      if(length(ind0) < (n-1)){
-        sum1 <- sum1 + sum((colSums(B[-1,-ind0]*X[, i]))^2) 
-      }
-      if(length(ind0) == (n-1)){
-        sum1 <- sum1 + sum(((B[-1,-ind0]*X[, i]))^2) 
-      }
-    }
-    ap = a0 + n/2 - length(ind0) / 2
-    bp = b0 + sum1/2
+    
+    
+    # ind0 <- which(B[1, ]!=0)
+    # sum1 <- 0
+    # for(i in 1:p){
+    #   if(length(ind0) < (n-1)){
+    #     sum1 <- sum1 + sum((colSums(B[-1,-ind0]*X[, i]))^2) 
+    #   }
+    #   if(length(ind0) == (n-1)){
+    #     sum1 <- sum1 + sum(((B[-1,-ind0]*X[, i]))^2) 
+    #   }
+    # }
+    # ap = a0 + n/2 - length(ind0) / 2
+    # bp = b0 + sum1/2
+    # 
+    # lam = 1/rgamma(1, ap, bp)
+    
+
+    A_exclude_root = A[-1,]
+    A_exclude_root=  A_exclude_root[,-1]
+    A_exclude_root[upper.tri(A_exclude_root)]=0
+    ap  = a0 + p * sum(A_exclude_root) /2
+    bp  = b0 + sum(DisMat2*A_exclude_root) /2
     
     lam = 1/rgamma(1, ap, bp)
+    
+    
     
     #update wl
     for(i in 1:(K-1)){
