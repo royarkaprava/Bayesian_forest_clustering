@@ -38,9 +38,25 @@ X    <- locR
 source('spectralV2_withstickbreaking.R')
 
 #I am initializing using ComputeMST(), there may be other ways too.
-fit <- clusteringFP(X, alpha0 = 0.001, a0=0.1, b0 = 0.1, K= 20, Total_itr = 100, burn=50)
+fit <- clusteringFP(X, alpha0 = 0.001, a0=0.1, b0 = 0.1, K= 20, Total_itr = 500, burn=250)
 
-##Not run always
+ts.plot(fit$lam_ls)
+acf(fit$lam_ls,lag.max = 40)
+
+min(dist(X)[dist(X)>0])
+
 rowMeans(fit$clssize_ls) #estimated class sizes
 #fit$estiadja #estimated adjacency
 rowMeans(fit$stickbrkwts) #Estimated components for stick breaking
+
+
+barplot(table(apply(fit$clslb_ls,2, function(x)length(unique(x)))))
+
+image(fit$estiadja,col = topo.colors(100, rev=F))
+
+plot(fit$estiadja[1,])
+# fit$estiadja
+
+plot(X[,1],X[,2], col = fit$clslb_ls[,100])
+
+

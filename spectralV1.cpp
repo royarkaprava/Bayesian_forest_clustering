@@ -145,7 +145,7 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, co
             if(clsmem(l)==0){
               temp = -log(unilength)-log(-log(gumgen))+vbbar*log(wl(l));
               if(vbbar>2){
-                temp = temp+(vbbar-2)*log(vbbar);
+                temp = temp-(vbbar-2)*log(vbbar);
               }
               //bigmat(j, k, l) = temp;
               payoff=temp;

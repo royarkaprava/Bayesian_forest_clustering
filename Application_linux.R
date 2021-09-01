@@ -51,7 +51,7 @@ source('spectralV2_withstickbreaking.R')
 a0 =  1
 b0 =  1E-3
 
-fit <- clusteringFP(X,alpha0 =  0.1, a0= a0, b0 = b0, K= 20, Total_itr = 1000, burn=100, gamma=100000000)
+fit <- clusteringFP(X,alpha0 =  0.1, a0= a0, b0 = b0, K= 20, Total_itr = 1000, burn=500, gamma=100000)
 
 ts.plot(fit$lam_ls)
 acf(fit$lam_ls,lag.max = 40)
@@ -70,6 +70,11 @@ image(fit$estiadja,col = topo.colors(100, rev=F))
 plot(fit$estiadja[1,])
 # fit$estiadja
 
-plot(X[,1],X[,2], col = fit$clslb_ls[,100])
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
 
+modelabel <- apply(fit$clslb_ls, 1, getmode)
 
+plot(X[,1],X[,2], col = modelabel)
