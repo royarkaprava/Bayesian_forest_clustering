@@ -57,6 +57,13 @@ image(fit$estiadja,col = topo.colors(100, rev=F))
 plot(fit$estiadja[1,])
 # fit$estiadja
 
-plot(X[,1],X[,2], col = fit$clslb_ls[,100])
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+modelabel <- apply(fit$clslb_ls, 1, getmode)
+
+plot(X[,1],X[,2], col = modelabel)
 
 
