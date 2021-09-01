@@ -8,7 +8,15 @@ library(bmixture)
 #Inverse Gamma scale param b0
 #Maximum no. of cluster K
 
-clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000, burn=5000, gamma =1){
+
+# alpha0=0.5
+# a0=0.1
+# b0=0.1
+# K=20
+# Total_itr = 100
+# burn=50
+
+clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, burn=5000, gamma =1){
   #K=20
   
   Ugamma <- function(gamma){
@@ -17,6 +25,72 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
     
     return(ret)
   }
+  
+  
+  ###### functions needed for using Quasi-Bernoulli stick-breaking
+  # sample from truncated beta supported in (a,b)
+  rtbeta <- function(n, alpha, beta, a = 0, b = 1) {
+    stopifnot(n > 0 & all(beta > 0) & all(alpha > 0))
+    x <- runif(n)
+    Fa <- pbeta(a, alpha, beta)
+    Fb <- pbeta(b, alpha, beta)
+    y <- (1 - x) * Fa + x * Fb
+    y[y < 1E-16] = 1E-16
+    return(qbeta(y, alpha, beta))
+  }
+  
+  
+  updateBeta <- function(n_C, b, alpha_beta = 1, eps = 1E-3, d_beta = 0) {
+    
+    # n_C <- colSums(C)
+    par1_beta = (N - cumsum(n_C)) + alpha_beta + d_beta * c(1:K)
+    par2_beta = n_C + 1 - d_beta
+    
+    beta_1 = rbeta(K, par1_beta, par2_beta)
+    if (p_b == 1) {
+      beta = beta_1
+      if (any(is.na(beta))) {
+        # print("beta err")
+        beta = updateBeta(n_C, b, alpha_beta, eps, d_beta)
+      }
+      return(beta)
+    }
+    beta_2 = rtbeta(K, par1_beta, par2_beta, 0, eps) / eps # truncated Beta distribution
+    
+    beta = beta_1 * (b == 1) + beta_2 * (b != 1)
+    # beta[K]=1E-8
+    if (any(is.na(beta))) {
+      # print("beta err")
+      beta = updateBeta(n_C, b, alpha_beta, eps, d_beta)
+    }
+    return(beta)
+  }
+  
+  
+  updateB <- function(n_C, eps = 1E-3, p_b = 0.9, alpha_beta = 1) {
+    
+    # n_C <- colSums(C)
+    m_C = N - cumsum(n_C)
+    
+    choice1 = log(p_b)
+    choice2 = log(1 - p_b) + pbeta(eps, alpha_beta + m_C, n_C + 1, log.p = T) - alpha_beta * log(eps)
+    
+    gumbel = -log(-log(runif(K * 2, min = 0, max = 1)))
+    
+    prob_choice = cbind(choice1, choice2) + gumbel
+    b <- colSums((apply(prob_choice, 1, function(x) x == max(x))) * c(1, eps))
+    return(b)
+  }
+  
+  updateW <- function(b, beta) {
+    v = 1 - b * beta
+    w = v * (cumprod(c(1, 1 - v))[1:K])
+    return(w)
+  }
+  
+  
+  #################
+  
   
   getA <- function(B){
     A = - B %*% t(B)
@@ -39,13 +113,14 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   # Lapei <- Lapei[, n:(n-K+1)]
   # sepcl <- kmeans(Lapei, centers = K)
   
-  mu    <- c(median(X[, 1]), median(X[, 2]))
+  # mu    <- c(median(X[, 1]), median(X[, 2]))
+  mu <- apply(X, 2, median)
   Xmu   <- rbind(mu, X)
   
   muprmn  <- mu
   
   d    <- data.frame(Xmu)
-  out  <- ComputeMST(d)
+  out  <- ComputeMST(d,verbose = FALSE)
   
   
   DisMat2 <- as.matrix(dist(X)^2)
@@ -55,12 +130,10 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
     disX <- disX[-which(disX==0)] 
   }
   
-  
   lam   <- min(disX) #variance for other conditional edges
 
-  
-  b0 <- min(disX/p) #I will check dist(X)
-  a0 <- 2
+  # b0 <- min(disX/p) #I will check dist(X)
+  # a0 <- 2
   
   B <- matrix(0, n+1, n)
   
@@ -92,7 +165,7 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   }
   edges <- out[n:1, 3:4]
   
-  #Total_itr <- 5000
+  
   Ap <- matrix(0, n+1, n+1)
   Bp <- matrix(0, n+1, n)
   B2inv <- solve(crossprod(B))
@@ -128,9 +201,11 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   gamsd <- 1e-2
   argam <- 0
   
-  betap <- matrix(0, K-1, Total_itr-burn)#rep(0, K-1)
+  betap <- matrix(0, K, Total_itr-burn)#rep(0, K-1)
   
   pb <- txtProgressBar(min = itr, max = Total_itr, style = 3)
+  
+  itr=0
   while(itr < Total_itr){
     itr <- itr + 1
     
@@ -175,14 +250,27 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
     
     
     #update wl
-    for(i in 1:(K-1)){
-      alpha.k <- 1 + clsmem[i]
-      beta.k  <- sum(clsmem[-(1:i)]) + alpha0
-      
-      beta[i] <- rbeta(1, alpha.k, beta.k)
-    }
     
-    wl <- c(beta, 1)*c(1, exp(cumsum(log(1-beta))))
+    n_C <- clsmem
+    N <- n
+    p_b = 0.1
+    d_beta = 0
+    alpha_beta = 1
+    eps = 1E-3
+    
+    b <- updateB(n_C, eps = eps, p_b = p_b, alpha_beta = alpha_beta)
+    beta <- updateBeta(n_C, b, alpha_beta = alpha_beta, d_beta = d_beta, eps = eps)
+    wl <- updateW(b, beta)
+    
+
+    # for(i in 1:(K-1)){
+    #   alpha.k <- 1 + clsmem[i]
+    #   beta.k  <- sum(clsmem[-(1:i)]) + alpha0
+    #   
+    #   beta[i] <- rbeta(1, alpha.k, beta.k)
+    # }
+    # 
+    # wl <- c(beta, 1)*c(1, exp(cumsum(log(1-beta))))
     
     #wl <- rdirichlet(1, rep(alpha, K) + clsmem)
     
@@ -225,7 +313,11 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
     Sys.sleep(0.1)
     # update progress bar
     setTxtProgressBar(pb, itr)
+    print(n_C)
+    
   }
+  
+  
   close(pb)
   Ap <- Ap / (Total_itr - burn)
   Bp <- Bp / (Total_itr - burn)

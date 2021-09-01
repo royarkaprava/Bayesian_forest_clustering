@@ -26,7 +26,7 @@ label
 
 ind1 <- which(label==1)
 ind2 <- which(label==2)
-idx <- c(sample(ind1,50), sample(ind2, 50))
+idx <- c(sample(ind1,100), sample(ind2, 100))
 
 locR <- loc[idx, ]
 label_set = label[idx]
@@ -44,9 +44,14 @@ X    <- locR
 
 ######################################################################################
 source('spectralV2_withstickbreaking.R')
+# source('spectralV2_withQuasiBernoulli.R')
 
 #I am initializing using ComputeMST(), there may be other ways too.
-fit <- clusteringFP(X, alpha0 = 0.1, a0=2, b0 = 1, K= 20, Total_itr = 200, burn=100)
+
+a0 =  1
+b0 =  1E-3
+
+fit <- clusteringFP(X,alpha0 =  0.1, a0= a0, b0 = b0, K= 20, Total_itr = 1000, burn=100, gamma=100000000)
 
 ts.plot(fit$lam_ls)
 acf(fit$lam_ls,lag.max = 40)
@@ -65,6 +70,6 @@ image(fit$estiadja,col = topo.colors(100, rev=F))
 plot(fit$estiadja[1,])
 # fit$estiadja
 
-plot(X[,1],X[,2], col = fit$clslb_ls[,50])
+plot(X[,1],X[,2], col = fit$clslb_ls[,100])
 
 
