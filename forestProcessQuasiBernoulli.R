@@ -184,7 +184,7 @@ clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, bu
   for(k in 1:K){
     clsmem[k] <- length(which(clslb==k))
   }
-  #alpha0 <- 0.5
+  alpha0 <- 0.5
   beta  <- rbeta(K-1, 1, alpha0)
   wl <- c(beta, 1)*c(1, exp(cumsum(log(1-beta))))
   
@@ -313,7 +313,7 @@ clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, bu
     Sys.sleep(0.1)
     # update progress bar
     setTxtProgressBar(pb, itr)
-    print(n_C)
+    # print(n_C)
     
   }
   
