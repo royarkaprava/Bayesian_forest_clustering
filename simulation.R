@@ -7,6 +7,8 @@ if(Sys.info()["sysname"] %in% c("Windows") ){
 }
 
 
+
+
 Rcpp::sourceCpp('updateTree.cpp')
 
 data <- read.csv("./data.txt", header = F)
@@ -37,7 +39,7 @@ b0 =  1E-3
 # fit <- clusteringFP(X,alpha0 =  0.001, a0= a0, b0 = b0, K= 20, Total_itr = 1000, burn=500, gamma=1000)
 
 source('forestProcessQuasiBernoulli.R')
-fit <- clusteringFP(X,p_b =  0.1, a0= a0, b0 = b0, K= 20, Total_itr = 1000, burn=500, gamma=1000)
+fit <- clusteringFP(X,p_b =  0.1, a0= a0, b0 = b0, K= 10, Total_itr = 1000, burn=500, gamma=1000,random_scan_n = 0)
 
 
 ts.plot(fit$lam_ls)
@@ -66,5 +68,6 @@ modelabel <- apply(fit$clslb_ls, 1, getmode)
 
 plot(X[,1],X[,2], col = modelabel)
 
+plot(X[,1],X[,2], col = fit$clslb_ls[,100])
 plot(X[,1],X[,2], col = fit$clslb_ls[,500])
-
+plot(X[,1],X[,2], col = fit$clslb_ls[,300])
