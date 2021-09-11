@@ -1,19 +1,15 @@
-# n <- 1000
-# 
-# tseq <- seq(0, 3, length.out = n)
-# Yeu    <- matrix(0, 2, n)
-# 
-# for(i in 1:n){
-#   Yeu[1, i] <- integrate(f=function(x){(cos(x^2))}, 0, tseq[i])$value
-#   Yeu[2, i] <- integrate(f=function(x){(sin(x^2))}, 0, tseq[i])$value
-# }
-# 
-# data <- Yeu + matrix(rnorm(2*n, sd = 0.01), 2, n)
-# plot(t(data))
+if(Sys.info()["sysname"] %in% c("Linux","Darwin") ){
+  setwd("~/git/Spectral-clustering/")
+}
+
+if(Sys.info()["sysname"] %in% c("Windows") ){
+  setwd("\\\\file.phhp.ufl.edu\\home\\ark007\\My Documents\\Spectral clustering")
+}
 
 
-setwd("~/git/Spectral-clustering/")
-Rcpp::sourceCpp('spectralV1.cpp')
+
+
+Rcpp::sourceCpp('updateTree.cpp')
 
 data <- read.csv("./data.txt", header = F)
 
@@ -32,26 +28,19 @@ locR <- loc[idx, ]
 label_set = label[idx]
 X    <- locR
 
-#plot(X)
-
-# K <- 4
-# 
-# p     <- ncol(X)
-# n     <- nrow(X)
-# Xdis  <- as.matrix(exp(-dist(X)/10))
-# diag(Xdis) <- 1
-
-
 ######################################################################################
-source('spectralV2_withstickbreaking.R')
-# source('spectralV2_withQuasiBernoulli.R')
 
 #I am initializing using ComputeMST(), there may be other ways too.
 
 a0 =  1
 b0 =  1E-3
 
-fit <- clusteringFP(X,alpha0 =  0.1, a0= a0, b0 = b0, K= 20, Total_itr = 1000, burn=500, gamma=100000)
+# source('forestProcessDirichlet.R')
+# fit <- clusteringFP(X,alpha0 =  0.001, a0= a0, b0 = b0, K= 20, Total_itr = 1000, burn=500, gamma=1000)
+
+source('forestProcessQuasiBernoulli.R')
+fit <- clusteringFP(X,p_b =  0.1, a0= a0, b0 = b0, K= 10, Total_itr = 1000, burn=500, gamma=1000,random_scan_n = 0)
+
 
 ts.plot(fit$lam_ls)
 acf(fit$lam_ls,lag.max = 40)
@@ -68,8 +57,8 @@ barplot(table(apply(fit$clslb_ls,2, function(x)length(unique(x)))))
 image(fit$estiadja,col = topo.colors(100, rev=F))
 
 plot(fit$estiadja[1,])
-# fit$estiadja
-
+# # fit$estiadja
+# 
 getmode <- function(v) {
   uniqv <- unique(v)
   uniqv[which.max(tabulate(match(v, uniqv)))]
@@ -78,3 +67,7 @@ getmode <- function(v) {
 modelabel <- apply(fit$clslb_ls, 1, getmode)
 
 plot(X[,1],X[,2], col = modelabel)
+
+plot(X[,1],X[,2], col = fit$clslb_ls[,100])
+plot(X[,1],X[,2], col = fit$clslb_ls[,500])
+plot(X[,1],X[,2], col = fit$clslb_ls[,300])

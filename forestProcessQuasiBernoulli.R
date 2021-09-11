@@ -16,8 +16,13 @@ library(bmixture)
 # Total_itr = 100
 # burn=50
 
-clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, burn=5000, gamma =1){
+clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, burn=5000, gamma =1, random_scan_n = 0){
   #K=20
+  
+  
+  if(random_scan_n==0){
+    random_scan_n= nrow(X)
+  }
   
   Ugamma <- function(gamma){
     fitK <- sum(B[1, ]!=0)
@@ -184,7 +189,7 @@ clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, bu
   for(k in 1:K){
     clsmem[k] <- length(which(clslb==k))
   }
-  #alpha0 <- 0.5
+  alpha0 <- 0.5
   beta  <- rbeta(K-1, 1, alpha0)
   wl <- c(beta, 1)*c(1, exp(cumsum(log(1-beta))))
   
@@ -217,7 +222,10 @@ clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, bu
     b <- rep(1,401)
     b1 <- b
     #update B, here 'b' is useless. I added for debugging.
-    BupC(B, B2inv, clslb, clsmem, b1,b, wl, lam, 2^p*gamma^p*prod(d), Xmu)
+    
+    
+    
+    BupC(B, B2inv, clslb, clsmem, b1,b, wl, lam, 2^p*gamma^p*prod(d), Xmu, random_scan_n)
     A <- getA(B)
     
     ####Update lam
@@ -313,7 +321,7 @@ clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, bu
     Sys.sleep(0.1)
     # update progress bar
     setTxtProgressBar(pb, itr)
-    print(n_C)
+    # print(n_C)
     
   }
   
