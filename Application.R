@@ -65,5 +65,3 @@ getmode <- function(v) {
 modelabel <- apply(fit$clslb_ls, 1, getmode)
 
 plot(X[,1],X[,2], col = modelabel)
-
-
