@@ -3,7 +3,7 @@ if(Sys.info()["sysname"] %in% c("Linux","Darwin") ){
 }
 
 if(Sys.info()["sysname"] %in% c("Windows") ){
-  setwd("\\\\file.phhp.ufl.edu\\home\\ark007\\My Documents\\Spectral clustering")
+  setwd("\\\\file.phhp.ufl.edu\\home\\ark007\\My Documents\\GitHub\\Spectral-clustering")
 }
 
 
