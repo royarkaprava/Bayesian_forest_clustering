@@ -65,8 +65,8 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   B <- matrix(0, n+1, n)
   
   for(i in n:1){
-    B[out[i, 3], i] <- 1
-    B[out[i, 4], i] <- -1
+    B[out$from[i], i] <- 1
+    B[out$to[i], i] <- -1
   }
   
   A <- getA(B)
