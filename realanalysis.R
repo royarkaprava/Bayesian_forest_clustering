@@ -13,7 +13,7 @@ Rcpp::sourceCpp('updateTreedefusednormal.cpp')
 
 load("realdataPW.rda") #datafmat1PW is rsfMRI for visit 1, datafmat2PW is rsfMRI for visit 2 etc and one year apart visits
 
-data <- datafmat3PW
+data <- datafmat1PW
 
 X    <- data
 
@@ -54,6 +54,11 @@ getmode <- function(v) {
 }
 
 modelabel <- apply(fit$clslb_ls, 1, getmode)
+
+unilabels <- unique(modelabel)
+for(i in 1:length(unilabels)){
+  print(rownames(datafmat1PW)[which(modelabel==unilabels[i])])
+}
 # 
 # plot(X[,1],X[,2], col = modelabel)
 # 
