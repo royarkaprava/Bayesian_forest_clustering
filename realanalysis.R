@@ -15,7 +15,7 @@ load("realdataPW.rda") #datafmat1PW is rsfMRI for visit 1, datafmat2PW is rsfMRI
 
 data <- datafmat1PW
 
-X    <- data
+X    <- data[-c(109:116), ]
 
 ######################################################################################
 
@@ -28,7 +28,7 @@ b0 =  1E-3
 # fit <- clusteringFP(X,alpha0 =  0.001, a0= a0, b0 = b0, K= 20, Total_itr = 1000, burn=500, gamma=1000)
 p_b=0.1; a0=0.1; b0=0.1; K=20; lam = 1000; Total_itr = 10000; burn=5000; gamma =1; random_scan_n = 0
 source('forestProcessQuasiBernoullidefusednormal.R')
-fit <- clusteringFP(X,p_b =  0.1, a0= a0, b0 = b0, K= 10,lam=100, Total_itr = 1000, burn=500, gamma=10,random_scan_n = 0)
+fit <- clusteringFP(X,p_b =  0.1, a0= a0, b0 = b0, K= 10,lam=5, Total_itr = 1000, burn=500, gamma=10,random_scan_n = 0)
 
 
 ts.plot(fit$sig_ls)
