@@ -11,9 +11,9 @@ if(Sys.info()["sysname"] %in% c("Windows") ){
 
 Rcpp::sourceCpp('updateTreedefusednormal.cpp')
 
-load("realdata.rda") #datafmat1PW is rsfMRI for visit 1, datafmat2PW is rsfMRI for visit 2 etc and one year apart visits
+load("realdataPW.rda") #datafmat1PW is rsfMRI for visit 1, datafmat2PW is rsfMRI for visit 2 etc and one year apart visits
 
-data <- datafmat1
+data <- datafmat3PW
 
 X    <- data
 
@@ -41,22 +41,22 @@ rowMeans(fit$clssize_ls) #estimated class sizes
 rowMeans(fit$stickbrkwts) #Estimated components for stick breaking
 
 
-barplot(table(apply(fit$clslb_ls,2, function(x)length(unique(x)))))
-
-image(fit$estiadja,col = topo.colors(100, rev=F))
-
-plot(fit$estiadja[1,])
-# # fit$estiadja
+# barplot(table(apply(fit$clslb_ls,2, function(x)length(unique(x)))))
 # 
+# image(fit$estiadja,col = topo.colors(100, rev=F))
+# 
+# plot(fit$estiadja[1,])
+# # # fit$estiadja
+# # 
 getmode <- function(v) {
   uniqv <- unique(v)
   uniqv[which.max(tabulate(match(v, uniqv)))]
 }
 
 modelabel <- apply(fit$clslb_ls, 1, getmode)
-
-plot(X[,1],X[,2], col = modelabel)
-
-plot(X[,1],X[,2], col = fit$clslb_ls[,100])
-plot(X[,1],X[,2], col = fit$clslb_ls[,500])
-plot(X[,1],X[,2], col = fit$clslb_ls[,300])
+# 
+# plot(X[,1],X[,2], col = modelabel)
+# 
+# plot(X[,1],X[,2], col = fit$clslb_ls[,100])
+# plot(X[,1],X[,2], col = fit$clslb_ls[,500])
+# plot(X[,1],X[,2], col = fit$clslb_ls[,300])
