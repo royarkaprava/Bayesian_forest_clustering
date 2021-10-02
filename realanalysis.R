@@ -15,7 +15,7 @@ load("realdataPW.rda") #datafmat1PW is rsfMRI for visit 1, datafmat2PW is rsfMRI
 
 data <- datafmat1PW
 
-X    <- data[-c(109:116), ]
+X    <- data#[-c(109:116), ]
 
 ######################################################################################
 
