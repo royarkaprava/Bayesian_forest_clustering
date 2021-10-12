@@ -150,8 +150,8 @@ for(j =0 ; j<indN.size(); j++){
       }
       if(indN(j)*indP(k) == 0){ //To check whether either of them is a root node
         gumgen = arma::randu();
-        temp = accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)),2))/(gamma*gamma)
-        temp = -p*log(gamma)-(1+p)*log(1+temp)/2# - p*log(2*3.14*gamma*sig)/2;//normal density part
+        temp = accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)),2))/(gamma*gamma);
+        temp = -p*log(gamma)-(1+p)*log(1+temp)/2 - (p+1)/2*log(3.14)+ lgamma((1+p)/2.0); //# - p*log(2*3.14*gamma*sig)/2;//normal density part
         if(clsmem(l)==0){
           temp = temp-log(-log(gumgen))+vbbar*log(wl(l));
           if(vbbar>2){
