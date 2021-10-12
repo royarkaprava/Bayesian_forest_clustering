@@ -57,7 +57,7 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   
   
   lam   <- min(disX) #variance for other conditional edges
-
+  
   
   b0 <- min(disX/p) #I will check dist(X)
   a0 <- 2
@@ -65,8 +65,8 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
   B <- matrix(0, n+1, n)
   
   for(i in n:1){
-    B[out[i, 3], i] <- 1
-    B[out[i, 4], i] <- -1
+    B[out$from[i], i] <- 1
+    B[out$to[i], i] <- -1
   }
   
   A <- getA(B)
@@ -163,7 +163,7 @@ clusteringFP <- function(X, alpha0=0.5, a0=0.1, b0=0.1, K=20, Total_itr = 10000,
     # 
     # lam = 1/rgamma(1, ap, bp)
     
-
+    
     A_exclude_root = A[-1,]
     A_exclude_root=  A_exclude_root[,-1]
     A_exclude_root[upper.tri(A_exclude_root)]=0

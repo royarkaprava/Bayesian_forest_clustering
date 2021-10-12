@@ -2,14 +2,14 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
-#include<omp.h>
+#include <omp.h>
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::plugins(cpp11)]]
 // [[Rcpp::plugins(openmp)]]
 
 using namespace arma;
-// 
+
 // arma::uword samp_temp(const arma::vec &pvec) {
 //   
 //   // generate a vector of indices, so that 0 represents the largest 
@@ -38,7 +38,7 @@ using namespace arma;
 
 // [[Rcpp::export]]
 
-void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, const vec wl, const double lam, const double unilength, const mat &Xmu) {
+void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, const vec wl, const double sig, const double lam, const mat &Xmu, const int random_scan_n) {
   unsigned int n = B.n_cols;
   unsigned int p = Xmu.n_cols;
   uword Totalcls=clsmem.size();
@@ -49,7 +49,13 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, co
   vec indexf = regspace<vec>(0,  1,  n);
   double temp;
   uword i=0;
-  for(i=0; i < n; i++){
+  
+  
+  uvec random_scan_idx = randperm( n, random_scan_n);
+  for(int ri=0;ri<random_scan_idx.n_elem;ri++){
+    int i = random_scan_idx(ri);
+    // cout<<i<<endl;
+    // for(i=0; i < n; i++){
     vec Bi = B.col(i);
     if(i > 0){indexi(i-1) = 0;}
     Bminusi  = B.cols(indexi);
@@ -112,12 +118,15 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, co
     
     uword l=0;
     for(j =0 ; j<indN.size(); j++){
+      
+      Rcpp::checkUserInterrupt();
+      
       for(k =0 ; k<indP.size(); k++){
         for(l =0 ; l < Totalcls; l++){
           payoff = maxvalue;
           if(indN(j)*indP(k) > 0){ //To check whether either of them is a root node
             gumgen = arma::randu();
-            temp = - accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)),2))/(2*lam) - p*log(2*3.14*lam)/2;//normal density part
+            temp = - accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)),2))/(2*sig) - p*log(2*3.14*sig)/2;//normal density part
             if(flagN==1){
               uword tindex = indN(j)-1;
               other = clsno(tindex)-1;}
@@ -141,11 +150,11 @@ void BupC(mat &B, mat &B2inv, vec &clsno, vec &clsmem, vec &beta, vec &beta1, co
           }
           if(indN(j)*indP(k) == 0){ //To check whether either of them is a root node
             gumgen = arma::randu();
-            //temp = accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)), 2))/tau;
+            temp = - accu(pow(Xmu.row(indN(j)) - Xmu.row(indP(k)),2))/(2*lam) - p*log(2*3.14*lam)/2;//normal density part
             if(clsmem(l)==0){
-              temp = -log(unilength)-log(-log(gumgen))+vbbar*log(wl(l));
+              temp = temp-log(-log(gumgen))+vbbar*log(wl(l));
               if(vbbar>2){
-                temp = temp+(vbbar-2)*log(vbbar);
+                temp = temp-(vbbar-2)*log(vbbar);
               }
               //bigmat(j, k, l) = temp;
               payoff=temp;

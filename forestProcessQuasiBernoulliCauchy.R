@@ -127,8 +127,8 @@ clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, bu
   d    <- data.frame(Xmu)
   out  <- ComputeMST(d,verbose = FALSE)
   
-  
-  DisMat2 <- as.matrix(dist(X)^2)
+  DisMat2f <- as.matrix(dist(Xmu)^2)
+  DisMat2  <- DisMat2f[-1,-1]
   
   disX <- array(dist(X)^2)
   if(sum(disX==0)){
@@ -136,7 +136,7 @@ clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, bu
   }
   
   sig   <- min(disX) #variance for other conditional edges
-
+  
   # b0 <- min(disX/p) #I will check dist(X)
   # a0 <- 2
   
@@ -225,10 +225,10 @@ clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, bu
     
     
     
-    BupC(B, B2inv, clslb, clsmem, b1,b, wl, sig, 2^p*gamma^p*prod(d), Xmu, random_scan_n)
+    BupC(B, B2inv, clslb, clsmem, b1,b, wl, sig, gamma, Xmu, random_scan_n)
     A <- getA(B)
     
-    ####Update sig
+    ####Update lam
     
     
     # ind0 <- which(B[1, ]!=0)
@@ -244,14 +244,21 @@ clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, bu
     # ap = a0 + n/2 - length(ind0) / 2
     # bp = b0 + sum1/2
     # 
-    # sig = 1/rgamma(1, ap, bp)
+    # lam = 1/rgamma(1, ap, bp)
     
-
+    
     A_exclude_root = A[-1,]
     A_exclude_root=  A_exclude_root[,-1]
     A_exclude_root[upper.tri(A_exclude_root)]=0
     ap  = a0 + p * sum(A_exclude_root) /2
     bp  = b0 + sum(DisMat2*A_exclude_root) /2
+    
+    #A_root = A[1,]
+    #A_root=  A_root[,1]
+    #A_root[upper.tri(A_exclude_root)]=0
+    
+    #ap = ap + p*sum(A_root) / 2
+    #bp = bp + sum(DisMat2f[1,]*A_root) /(2*kappa)
     
     sig = 1/rgamma(1, ap, bp)
     
@@ -270,7 +277,7 @@ clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, bu
     beta <- updateBeta(n_C, b, alpha_beta = alpha_beta, d_beta = d_beta, eps = eps)
     wl <- updateW(b, beta)
     
-
+    
     # for(i in 1:(K-1)){
     #   alpha.k <- 1 + clsmem[i]
     #   beta.k  <- sum(clsmem[-(1:i)]) + alpha0

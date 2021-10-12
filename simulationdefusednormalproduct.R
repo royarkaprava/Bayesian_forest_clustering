@@ -9,7 +9,7 @@ if(Sys.info()["sysname"] %in% c("Windows") ){
 
 
 
-Rcpp::sourceCpp('updateTree.cpp')
+Rcpp::sourceCpp('updateTreedefusednormalproduct.cpp')
 
 data <- read.csv("./data.txt", header = F)
 
@@ -28,6 +28,7 @@ locR <- loc[idx, ]
 label_set = label[idx]
 X    <- locR
 
+#X <- X - rowMeans(X)
 ######################################################################################
 
 #I am initializing using ComputeMST(), there may be other ways too.
@@ -38,8 +39,8 @@ b0 =  1E-3
 # source('forestProcessDirichlet.R')
 # fit <- clusteringFP(X,alpha0 =  0.001, a0= a0, b0 = b0, K= 20, Total_itr = 1000, burn=500, gamma=1000)
 
-source('forestProcessQuasiBernoulli.R')
-fit <- clusteringFP(X,p_b =  0.1, a0= a0, b0 = b0, K= 10, Total_itr = 1000, burn=500, gamma=1000,random_scan_n = 0)
+source('forestProcessQuasiBernoullidefusednormalproduct.R')
+fit <- clusteringFP(X,p_b =  0.1, a0= a0, b0 = b0, K= 10,kappa=10, Total_itr = 1000, burn=500, gamma=1000,random_scan_n = 0)
 
 
 ts.plot(fit$sig_ls)
