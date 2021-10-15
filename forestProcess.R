@@ -149,8 +149,11 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
       
       # the number of clusters within Ga
       
-      BGa<- B[Ga,,drop = F]
-      Kstar = sum(BGa[1,]>0)
+      if(length(C[Ga])>1){
+        Kstar = length(unique(C[Ga])[-1])
+      }else{
+        Kstar = 1
+      }
       
       SGaGb<- S[Ga,Gb]
       
@@ -224,7 +227,6 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
     Sf <- logden_f(d2 = DisMat2, sigma2 = sig, p=p)
     S<- rbind(c(0,Sr), cbind(Sr,Sf))
     diag(S)<- 0
-    
     
     
     
