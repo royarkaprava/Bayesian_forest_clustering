@@ -32,3 +32,5 @@ plot(X,col=(fit$C[[50]])[-1])
 trace_sigma2<- do.call('c',fit$Sig)
 acf(trace_sigma2,lag.max = 40)
 ts.plot(trace_sigma2)
+
+fit$C

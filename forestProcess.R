@@ -150,7 +150,7 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
       # the number of clusters within Ga
       
       if(length(C[Ga])>1){
-        Kstar = length(unique(C[Ga])[-1])
+        Kstar = length(unique((C[Ga])[-1]))
       }else{
         Kstar = 1
       }
