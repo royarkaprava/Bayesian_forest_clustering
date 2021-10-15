@@ -1,341 +1,248 @@
-library(emstreeR)
-library(Rcpp)
-library(RcppArmadillo)
-library(bmixture)
-
-#Dirichlet concentration alpha0
-#Inverse Gamma shape param a0
-#Inverse Gamma scale param b0
 #Maximum no. of cluster K
 
 
-# alpha0=0.5
-# a0=0.1
-# b0=0.1
-# K=20
-# Total_itr = 100
-# burn=50
+# Find the minimum spanning tree, return the incidence matrix
+FindMST <- function(DisMat2){
+  n<- nrow(DisMat2)
+  B<- matrix(0,n,n-1)
+  idx1<- c(1)
+  idx2<- c(2:n)
+  
+  for (l in 1:(n-1)){
+    Dsubset <- DisMat2[idx1,idx2]
+    idx1mat <- matrix(idx1,length(idx1),length(idx2))
+    idx2mat <- matrix(idx2,length(idx1),length(idx2),byrow = T)
+    
+    picked_i <- idx1mat[Dsubset == min(Dsubset)]
+    picked_j <- idx2mat[Dsubset == min(Dsubset)]
+    
+    B[picked_i,l]= 1
+    B[picked_j,l]= -1
+    
+    idx1<- c(idx1,picked_j)
+    idx2<- setdiff(c(1:n),idx1)
+  }
+  B
+}
 
-clusteringFP <- function(X, p_b=0.1, a0=0.1, b0=0.1, K=20, Total_itr = 10000, burn=5000, gamma =1, random_scan_n = 0){
-  #K=20
+# function to produce the adjacency matrix from incidence matrix
+getA <- function(B){
+  A = - B %*% t(B)
+  diag(A) <- 0
+  return(A) 
+}
+
+
+# function to get submatrix of B2Inv
+getSubInverse<- function(B2Inv, k,full_edge_idx){
+  sel <- full_edge_idx == k
+  sel_not <- full_edge_idx != k
   
+  M11 = B2Inv[sel_not, sel_not]
+  M12 = B2Inv[sel_not, sel]
+  M22 = B2Inv[sel, sel]
   
+  return (M11 - M12%*%t(M12)/M22)
+}
+
+
+
+
+# log density for f
+logden_f <- function(d2, sigma2, p=p){
+  - 0.5* d2/sigma2 - 0.5* p*log(sigma2*2*pi) 
+}
+
+# log density for r
+logden_r <- function(d2, gamma=1, p=p){
+  - (1+p)/2* log(1+d2/(gamma^2)) + lgamma((1+p)/2) - (1+p)/2* log(pi) - p *log(gamma)
+}
+
+
+clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, random_scan_n = 0){
+  
+  listA<- list()
+  listB<- list()
+  listC<- list()
+  listSig<- list()
+  
+  # random_scan: randomly pick a subset of edges and update in an iteration  
   if(random_scan_n==0){
     random_scan_n= nrow(X)
   }
   
-  Ugamma <- function(gamma){
-    fitK <- sum(B[1, ]!=0)
-    ret <- -(p*K+2)*log(gamma)-1/gamma 
-    
-    return(ret)
-  }
-  
-  
-  ###### functions needed for using Quasi-Bernoulli stick-breaking
-  # sample from truncated beta supported in (a,b)
-  rtbeta <- function(n, alpha, beta, a = 0, b = 1) {
-    stopifnot(n > 0 & all(beta > 0) & all(alpha > 0))
-    x <- runif(n)
-    Fa <- pbeta(a, alpha, beta)
-    Fb <- pbeta(b, alpha, beta)
-    y <- (1 - x) * Fa + x * Fb
-    y[y < 1E-16] = 1E-16
-    return(qbeta(y, alpha, beta))
-  }
-  
-  
-  updateBeta <- function(n_C, b, alpha_beta = 1, eps = 1E-3, d_beta = 0) {
-    
-    # n_C <- colSums(C)
-    par1_beta = (N - cumsum(n_C)) + alpha_beta + d_beta * c(1:K)
-    par2_beta = n_C + 1 - d_beta
-    
-    beta_1 = rbeta(K, par1_beta, par2_beta)
-    if (p_b == 1) {
-      beta = beta_1
-      if (any(is.na(beta))) {
-        # print("beta err")
-        beta = updateBeta(n_C, b, alpha_beta, eps, d_beta)
-      }
-      return(beta)
-    }
-    beta_2 = rtbeta(K, par1_beta, par2_beta, 0, eps) / eps # truncated Beta distribution
-    
-    beta = beta_1 * (b == 1) + beta_2 * (b != 1)
-    # beta[K]=1E-8
-    if (any(is.na(beta))) {
-      # print("beta err")
-      beta = updateBeta(n_C, b, alpha_beta, eps, d_beta)
-    }
-    return(beta)
-  }
-  
-  
-  updateB <- function(n_C, eps = 1E-3, p_b = 0.9, alpha_beta = 1) {
-    
-    # n_C <- colSums(C)
-    m_C = N - cumsum(n_C)
-    
-    choice1 = log(p_b)
-    choice2 = log(1 - p_b) + pbeta(eps, alpha_beta + m_C, n_C + 1, log.p = T) - alpha_beta * log(eps)
-    
-    gumbel = -log(-log(runif(K * 2, min = 0, max = 1)))
-    
-    prob_choice = cbind(choice1, choice2) + gumbel
-    b <- colSums((apply(prob_choice, 1, function(x) x == max(x))) * c(1, eps))
-    return(b)
-  }
-  
-  updateW <- function(b, beta) {
-    v = 1 - b * beta
-    w = v * (cumprod(c(1, 1 - v))[1:K])
-    return(w)
-  }
-  
-  
-  #################
-  
-  
-  getA <- function(B){
-    A = - B %*% t(B)
-    diag(A) <- 0
-    
-    return(A) 
-  }
-  #initialization
-  
-  #muprvar <- 0.1 # prior variance for \mu
   
   p     <- ncol(X)
   n     <- nrow(X)
-  # Xdis  <- as.matrix(exp(-dist(X)/10))
-  # #diag(Xdis) <- 1
-  # 
-  # d     <- rowSums(Xdis)
-  # LaplX <- diag(n) - diag(1/sqrt(d)) %*% Xdis %*% diag(1/sqrt(d))
-  # Lapei <- eigen(LaplX)$vectors
-  # Lapei <- Lapei[, n:(n-K+1)]
-  # sepcl <- kmeans(Lapei, centers = K)
   
-  # mu    <- c(median(X[, 1]), median(X[, 2]))
-  mu <- apply(X, 2, median)
-  Xmu   <- rbind(mu, X)
+  # use mean
+  mu <- apply(X, 2, mean)
   
-  muprmn  <- mu
   
-  d    <- data.frame(Xmu)
-  out  <- ComputeMST(d,verbose = FALSE)
+  # Compute the MST among y's
+  DisMat2 <- as.matrix(dist(X,"euclidean", diag = TRUE, upper = TRUE)^2)
+  dist2Xmu<-  colSums((t(X)-mu)**2)
   
-  DisMat2f <- as.matrix(dist(Xmu)^2)
-  DisMat2  <- DisMat2f[-1,-1]
+  B_without_node0 <- FindMST(DisMat2)
+  A_without_node0 <- getA(B_without_node0)
   
-  disX <- array(dist(X)^2)
-  if(sum(disX==0)){
-    disX <- disX[-which(disX==0)] 
-  }
+  edgeDist2 = (DisMat2*A_without_node0) [lower.tri(DisMat2)]
+  edgeDist2 = edgeDist2[edgeDist2>0]
   
-  sig   <- min(disX) #variance for other conditional edges
+  #use the median dist2 on the MST to specify b0_sigma
+  b0_sigma = median(edgeDist2)
+  a0_sigma = p+1
   
-  # b0 <- min(disX/p) #I will check dist(X)
-  # a0 <- 2
+  # initialize sigma2 as b0_sigma/p
+  sig   <- b0_sigma/p
   
-  B <- matrix(0, n+1, n)
+  # Initialize the B matrix by attaching node 0 to node 1
+  # that is, we start with one cluster
   
-  for(i in n:1){
-    B[out$from[i], i] <- 1
-    B[out$to[i], i] <- -1
-  }
-  
+  B <- cbind( c(1,-1,rep(0,n-1)), rbind(0,B_without_node0))
   A <- getA(B)
   
-  G <- igraph::graph_from_adjacency_matrix(as.matrix(A[-1,-1]),mode = "undirected")
-  pathmat <- igraph::shortest.paths(G)
   
-  path <- NetworkToolbox::pathlengths(A[-1,-1]) #shortest path length
+  # initialize the clustering membership
+  C <- rep(1,n+1) 
+  C[1]<- 0
   
-  clsno <- which(B[1, ] != 0)
-  l <- 1
-  clslb <- rep(0, n)
-  clslbp <- matrix(0, n, Total_itr-burn)#clslb
+  # S
   
-  sig_ls<- numeric(length = Total_itr-burn )
+  Sr <- logden_r(dist2Xmu, gamma=1,p=p)
   
-  for(k in clsno){
-    temp <- which(B[-1, k] != 0)
-    indcompo <- which(pathmat[temp, ] < Inf)
-    
-    clslb[indcompo] <- l
-    l <- l + 1
-  }
-  edges <- out[n:1, 3:4]
+  Sf <- logden_f(d2 = DisMat2, sigma2 = sig, p=p)
+  S<- rbind(c(0,Sr), cbind(Sr,Sf))
+  diag(S)<- 0
   
+  ##############
   
-  Ap <- matrix(0, n+1, n+1)
-  Bp <- matrix(0, n+1, n)
-  B2inv <- solve(crossprod(B))
+  full_edge_idx = c(1:n)
+  
+  B2Inv <- solve(t(B)%*%B)
   
   itr = 0
-  
-  B0 =B
-  A0=A
-  
-  classMat <- matrix(0, n, K)
-  
-  classMat[cbind(1:n, clslb[1:n])] <- rep(1, n)
-  
-  clsmem <- rep(0, K)
-  clsmemp <- matrix(0, K, Total_itr-burn)#clsmem
-  for(k in 1:K){
-    clsmem[k] <- length(which(clslb==k))
-  }
-  alpha0 <- 0.5
-  beta  <- rbeta(K-1, 1, alpha0)
-  wl <- c(beta, 1)*c(1, exp(cumsum(log(1-beta))))
-  
-  #wl <- alpha #rdirichlet(1, alpha)#rep(alpha, K)
-  
-  d <- rep(0, p)
-  
-  for(i in 1:p){
-    d[i] <- (max(X[,i]) - min(X[,i]))/2 #max(max(abs(X[,i]))-mean(X[,i]), mean(X[,i])-min(abs(X[,i])))
-  }
-  
-  # gamma <- 1
-  
-  gamsd <- 1e-2
-  argam <- 0
-  
-  betap <- matrix(0, K, Total_itr-burn)#rep(0, K-1)
-  
   pb <- txtProgressBar(min = itr, max = Total_itr, style = 3)
   
-  itr=0
-  while(itr < Total_itr){
-    itr <- itr + 1
+  for (itr in c(1:Total_itr)){
     
-    #update B
-    #beta = rep(0, 401)
-    #j=0; k=0 
-    #P=rep(1, 201)
-    #N <- rep(1,200)
-    b <- rep(1,401)
-    b1 <- b
-    #update B, here 'b' is useless. I added for debugging.
+    # update every edge
+    
+    for(k in c(1:n)){
+      sel <- full_edge_idx == k
+      sel_not <- full_edge_idx != k
+      
+      B_not_s = B[, sel_not, drop = F]
+      
+      B_not_s2_inv = getSubInverse(B2Inv, k, full_edge_idx)
+      
+      beta_k = c(B[,sel] - B_not_s%*%(B_not_s2_inv%*% (t(B_not_s)%*%B[, sel])))
+      mid_point = (max(beta_k)+min(beta_k))/2
+      
+      Ga<- beta_k > mid_point
+      # check if Ga includes 0: if not, flip the sign
+      if(!Ga[1]){
+        Ga <- !Ga
+      }
+      # the Gb set
+      Gb<- !Ga
+      
+      # the number of clusters within Ga
+      
+      BGa<- B[Ga,,drop = F]
+      Kstar = sum(BGa[1,]>0)
+      
+      SGaGb<- S[Ga,Gb]
+      
+      if(sum(Ga)==1){
+        SGaGb<- matrix(SGaGb,nrow=1,ncol=length(SGaGb))
+      }
+      if(sum(Gb)==1){
+        SGaGb<- matrix(SGaGb,ncol=1,nrow=length(SGaGb))
+      }
+      
+      # adjust for the change in Poisson prior if attaching Gb to node 0 (idx 1 in R program here)
+      SGaGb[1,] <- SGaGb[1,] + log(lambda) - log(Kstar+1) 
+      
+      ########
+      rgumbel<- -log(-log(runif(length(SGaGb))))
+      SGaGbGumbel<- SGaGb+ rgumbel
+      
+      GaIdx<- c(1:(n+1))[Ga]
+      GbIdx<- c(1:(n+1))[Gb]
+      
+      GaIdx1<- rep(GaIdx,length(GbIdx))
+      GbIdx1<- rep(GbIdx,each= length(GaIdx))
+      
+      picked_i <- GaIdx1[which.max(SGaGbGumbel)]
+      picked_j <- GbIdx1[which.max(SGaGbGumbel)]
+      
+      b_vec<- B[,k]
+      B[,k]<- 0
+      B[picked_i,k]<- 1
+      B[picked_j,k]<- -1
+      
+      if(sum(abs(B[,k]- b_vec))>0){ # if we change B[,k], update B2Inv and C
+        B_s_star = B[, sel]
+        b = t(B_not_s)%*%B_s_star  # complexity: O(p^2)
+        B_invB_b = B_not_s2_inv%*%b  # complexity: O(p^2)
+        M22_star = c(1./(2.0 - t(b)%*%(B_invB_b)))
+        M12_star = - B_invB_b * (M22_star)
+        
+        M11_star = B_not_s2_inv+M12_star%*% t(M12_star)/M22_star
+        
+        temp = B2Inv[sel_not,]
+        temp[, sel_not] = M11_star
+        temp[, sel] = M12_star
+        B2Inv[sel_not,] = temp
+        
+        temp = matrix(B2Inv[sel,],nrow = 1)
+        temp[,sel_not] = t(M12_star)
+        temp[, sel] = M22_star
+        B2Inv[sel,] = temp
+        
+        
+        if(picked_i==1){ # add a cluster
+          C[Gb]<- min(setdiff(c(0:(n)),C[Ga]))
+        }else{
+          C[Gb]<- C[picked_i]
+        }
+      }
+    }
+    
+    A<- getA(B)
     
     
+    # update sigma2
+    A_without_node0<- A[-1,-1]
+    A_without_node0[upper.tri(A_without_node0)]<-0
     
-    BupC(B, B2inv, clslb, clsmem, b1,b, wl, sig, gamma, Xmu, random_scan_n)
-    A <- getA(B)
-    
-    ####Update lam
-    
-    
-    # ind0 <- which(B[1, ]!=0)
-    # sum1 <- 0
-    # for(i in 1:p){
-    #   if(length(ind0) < (n-1)){
-    #     sum1 <- sum1 + sum((colSums(B[-1,-ind0]*X[, i]))^2) 
-    #   }
-    #   if(length(ind0) == (n-1)){
-    #     sum1 <- sum1 + sum(((B[-1,-ind0]*X[, i]))^2) 
-    #   }
-    # }
-    # ap = a0 + n/2 - length(ind0) / 2
-    # bp = b0 + sum1/2
-    # 
-    # lam = 1/rgamma(1, ap, bp)
-    
-    
-    A_exclude_root = A[-1,]
-    A_exclude_root=  A_exclude_root[,-1]
-    A_exclude_root[upper.tri(A_exclude_root)]=0
-    ap  = a0 + p * sum(A_exclude_root) /2
-    bp  = b0 + sum(DisMat2*A_exclude_root) /2
-    
-    #A_root = A[1,]
-    #A_root=  A_root[,1]
-    #A_root[upper.tri(A_exclude_root)]=0
-    
-    #ap = ap + p*sum(A_root) / 2
-    #bp = bp + sum(DisMat2f[1,]*A_root) /(2*kappa)
-    
+    ap  = a0_sigma + p*sum(A_without_node0)/2
+    bp  = b0_sigma + sum(DisMat2*A_without_node0) /2
     sig = 1/rgamma(1, ap, bp)
     
+    Sf <- logden_f(d2 = DisMat2, sigma2 = sig, p=p)
+    S<- rbind(c(0,Sr), cbind(Sr,Sf))
+    diag(S)<- 0
     
     
-    #update wl
-    
-    n_C <- clsmem
-    N <- n
-    p_b = 0.1
-    d_beta = 0
-    alpha_beta = 1
-    eps = 1E-3
-    
-    b <- updateB(n_C, eps = eps, p_b = p_b, alpha_beta = alpha_beta)
-    beta <- updateBeta(n_C, b, alpha_beta = alpha_beta, d_beta = d_beta, eps = eps)
-    wl <- updateW(b, beta)
-    
-    
-    # for(i in 1:(K-1)){
-    #   alpha.k <- 1 + clsmem[i]
-    #   beta.k  <- sum(clsmem[-(1:i)]) + alpha0
-    #   
-    #   beta[i] <- rbeta(1, alpha.k, beta.k)
-    # }
-    # 
-    # wl <- c(beta, 1)*c(1, exp(cumsum(log(1-beta))))
-    
-    #wl <- rdirichlet(1, rep(alpha, K) + clsmem)
-    
-    #beta of stick-breaking
-    
-    #update gamma using MH
-    # temp <- log(sqrt(gamma)) + rnorm(1, sd = gamsd)
-    # gammac <- exp(temp^2)
-    # #gammac <- max(1.0001, gammac)
-    # 
-    # D    <- Ugamma(gammac) - Ugamma(gamma)
-    # if(is.nan(D)){D=-Inf}
-    # if(is.na(D)){D=-Inf}
-    # 
-    # if(D > log(runif(1))){
-    #   argam <- argam + 1
-    #   gamma <- gammac
-    # }
     
     
     if(itr > burn){
-      Ap <- Ap+A 
-      Bp <- Bp + B
-      clslbp[, itr-burn]  <- clslb  #Storing class labels from postburn samples
-      clsmemp[, itr-burn] <- clsmem #Storing class sizes from postburn samples
-      betap[, itr - burn] <- beta   #Storing the K-1 elements of stick-breaking prior after burn-in
-      
-      sig_ls[itr - burn] <- sig   #Storing the K-1 elements of stick-breaking prior after burn-in
-      
+      listA[[itr-burn]] <- A 
+      listB[[itr-burn]] <- B 
+      listC[[itr-burn]] <- C 
+      listSig[[itr-burn]] <- sig
     }
-    
-    # if(itr %% 100 == 0){
-    #   ar <- argam/ itr
-    #   if(ar<.20){sdgam <- sdgam * (.5)}
-    #   if(ar>.40){sdgam <- sdgam * (2)}
-    # }
-    #update B2inv
-    #print(itr)
-    #print(tau)
+
     Sys.sleep(0.1)
     # update progress bar
     setTxtProgressBar(pb, itr)
-    # print(n_C)
-    
   }
-  
-  
   close(pb)
-  Ap <- Ap / (Total_itr - burn)
-  Bp <- Bp / (Total_itr - burn)
-  out <- list(estiadja = Ap, estiB = Bp, clslb_ls = clslbp, clssize_ls = clsmemp, stickbrkwts = betap, sig_ls = sig_ls)
+  
+  
+  
+  out <- list(A=listA,B=listB,C=listC,Sig= listSig)
   return(out)
 }
