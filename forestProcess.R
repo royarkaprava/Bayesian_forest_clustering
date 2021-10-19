@@ -1,5 +1,4 @@
-#Maximum no. of cluster K
-
+require('torch')
 
 # Find the minimum spanning tree, return the incidence matrix
 FindMST <- function(DisMat2){
@@ -45,6 +44,29 @@ getSubInverse<- function(B2Inv, k,full_edge_idx){
   return (M11 - M12%*%t(M12)/M22)
 }
 
+# function to reduce label switch
+
+relabelC2<- function(C1,C2){
+  ham_dist = sum(C1!=C2)
+  
+  for( i in 1:length(C1)){
+    c1 = C1[i]
+    c2 = C2[i]
+    if (c1!=c2){
+      C2prime = C2
+      C2prime[C2==c2] = c1
+      C2prime[C2==c1] = c2
+      
+      prop_dist = sum(C1!=C2prime)
+      if(prop_dist<ham_dist){
+        C2= C2prime
+        ham_dist = prop_dist
+      }
+      #         print(ham_dist)
+    }
+  }
+  return(C2)
+}
 
 
 
@@ -126,6 +148,11 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
   
   for (itr in c(1:Total_itr)){
     
+    # create a copy of current C
+    
+    cur_C <- C
+    
+    
     # update every edge
     
     for(k in c(1:n)){
@@ -206,12 +233,22 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
         
         
         if(picked_i==1){ # add a cluster
-          C[Gb]<- min(setdiff(c(0:(n)),C[Ga]))
+          C[Gb]<- min(setdiff(c(1:(n)),C[Ga]))
         }else{
           C[Gb]<- C[picked_i]
         }
       }
     }
+    
+    # relabeling C to minimize the hamming distance with last C
+    
+    #     idxC = min(setdiff(c(1:(n)),C))
+    #     while(idxC< max(C)){
+    #         C[C==max(C)] = idxC
+    #         idxC = min(setdiff(c(1:(n)),C))
+    #     }
+    #     C<- relabelC2(cur_C,C)
+    
     
     A<- getA(B)
     
@@ -233,10 +270,10 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
     if(itr > burn){
       listA[[itr-burn]] <- A 
       listB[[itr-burn]] <- B 
-      listC[[itr-burn]] <- C 
+      listC[[itr-burn]] <- C[-1]
       listSig[[itr-burn]] <- sig
     }
-
+    
     Sys.sleep(0.1)
     # update progress bar
     setTxtProgressBar(pb, itr)
@@ -247,4 +284,74 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
   
   out <- list(A=listA,B=listB,C=listC,Sig= listSig)
   return(out)
+}
+
+
+getCoAssignmentProb<- function(listC){
+  
+  coAssign= lapply(listC, function(x)outer(x,x,"==")*1)
+  
+  coAssignMat = matrix(0,n,n)
+  counter = 0
+  
+  for (l in c(1: length(listC))){
+    
+    if(length(unique(listC[[l]]))>1)   { 
+      coAssignMat = coAssignMat+ coAssign[[l]]
+      counter = counter+1
+    }
+  }
+  
+  coAssignMat = coAssignMat/counter
+  coAssignMat
+}
+
+getAssignProb<- function(P,K,learning_rate=0.1){
+  
+  n<- nrow(P)
+  coAssign_tf <- torch_tensor(P)
+  
+  
+  w0 <- torch_randn(c(n,K),requires_grad = TRUE)
+  
+  W<- torch_exp(w0 - torch_logsumexp(w0,dim = 2,keepdim = TRUE))
+  
+  
+  compLoss<- function(W){
+    W2 <- torch_matmul(W, torch_transpose(W,1,2))
+    loss <- torch_sum((W2 - coAssign_tf)**2)
+    loss
+  }
+  
+  
+  optimizer <- optim_adam(w0, lr = learning_rate)
+  
+  
+  for (t in 1:1000) {
+    
+    ### -------- Forward pass -------- 
+    
+    ### -------- compute loss -------- 
+    W<- torch_exp(w0 - torch_logsumexp(w0,dim = 2,keepdim = TRUE))
+    loss <- compLoss(W)
+    if (t %% 10 == 0)
+      cat("Epoch: ", t, "   Loss: ", loss$item(), "\n")
+    
+    ### -------- Backpropagation -------- 
+    
+    # Still need to zero out the gradients before the backward pass, only this time,
+    # on the optimizer object
+    optimizer$zero_grad()
+    
+    # gradients are still computed on the loss tensor (no change here)
+    loss$backward()
+    
+    ### -------- Update weights -------- 
+    
+    # use the optimizer to update model parameters
+    optimizer$step()
+  }
+  
+  as_array(W)
+  
 }
