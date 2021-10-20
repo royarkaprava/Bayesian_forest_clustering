@@ -242,11 +242,11 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
     
     # relabeling C to minimize the hamming distance with last C
     
-    #     idxC = min(setdiff(c(1:(n)),C))
-    #     while(idxC< max(C)){
-    #         C[C==max(C)] = idxC
-    #         idxC = min(setdiff(c(1:(n)),C))
-    #     }
+        idxC = min(setdiff(c(1:(n)),C))
+        while(idxC< max(C)){
+            C[C==max(C)] = idxC
+            idxC = min(setdiff(c(1:(n)),C))
+        }
     #     C<- relabelC2(cur_C,C)
     
     
