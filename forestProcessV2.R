@@ -203,10 +203,10 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1){
       picked_i <- GaIdx1[max_idx]
       picked_j <- GbIdx1[max_idx]
       
-#       b_vec<- B[,k]
-#       B[,k]<- 0
-#       B[picked_i,k]<- 1
-#       B[picked_j,k]<- -1
+      b_vec<- B[,k]
+      B[,k]<- 0
+      B[picked_i,k]<- 1
+      B[picked_j,k]<- -1
         
       edge_list[k,1] = picked_i
       edge_list[k,2] = picked_j
