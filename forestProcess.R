@@ -274,7 +274,7 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
       listSig[[itr-burn]] <- sig
     }
     
-    Sys.sleep(0.1)
+#     Sys.sleep(0.1)
     # update progress bar
     setTxtProgressBar(pb, itr)
   }

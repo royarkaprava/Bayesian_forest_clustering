@@ -71,7 +71,7 @@ logden_r <- function(d2, gamma=1, p=p){
 }
 
 
-clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, random_scan_n = 0){
+clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, max_num_neighbors_to_check = 0){
   
   listA<- list()
   listB<- list()
@@ -79,8 +79,8 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
   listSig<- list()
   
   # random_scan: randomly pick a subset of edges and update in an iteration  
-  if(random_scan_n==0){
-    random_scan_n= nrow(X)
+  if(max_num_neighbors_to_check==0){
+    max_num_neighbors_to_check= nrow(X)
   }
   
   
@@ -124,14 +124,15 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
     b_edge <- B[,k]
     idx0 <- zero_based_idx[b_edge== -1]
     idx1 <- zero_based_idx[b_edge== 1]
-    G$connect(idx0,idx1)    
+    G$connect(idx0,idx1, TRUE)    
   }
   
   
   # initialize the clustering membership
   C <- rep(1,n+1) 
   C[1]<- 0
-  
+  C <-as.integer(C)
+
   # S
   
   Sr <- logden_r(dist2Xmu, gamma=1,p=p)
@@ -139,7 +140,8 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
   Sf <- logden_f(d2 = DisMat2, sigma2 = sig, p=p)
   S<- rbind(c(0,Sr), cbind(Sr,Sf))
   diag(S)<- 0
-  
+    
+  G$setS(S)
   ##############
   
 #   full_edge_idx = c(1:n)
@@ -150,101 +152,10 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
   for (itr in c(1:Total_itr)){
     
     # create a copy of current C
-    
-    cur_C <- C
-    
-    
-    # update every edge
-    
-    for(k in c(1:n)){
-#       sel <- full_edge_idx == k
-#       sel_not <- full_edge_idx != k
         
-      # cut the kth edge
-      b_edge <- B[,k]
-      idx0 <- zero_based_idx[b_edge== 1]
-      idx1 <- zero_based_idx[b_edge== -1]
-      G$cut(idx0,idx1)    
-
-
-    GaIdx <- G$getConnectedNodes(idx1)+1 # add 1 to make the idx 1-based, as used in R
-        
-    print(length(GaIdx))
-        
-        
-    Ga<- rep(FALSE, n+1)
-
-    Ga[GaIdx]<- TRUE
+    G$updateGraph(C,lambda, max_num_neighbors_to_check)      
+    A= G$getA()
       
-      # check if Ga includes 0: if not, flip the sign
-      if(!Ga[1]){
-        Ga <- !Ga
-      }
-      # the Gb set
-      Gb<- !Ga
-      
-      # the number of clusters within Ga
-      
-      if(length(C[Ga])>1){
-        Kstar = length(unique((C[Ga])[-1]))
-      }else{
-        Kstar = 1
-      }
-      
-      SGaGb<- S[Ga,Gb]
-      
-      if(sum(Ga)==1){
-        SGaGb<- matrix(SGaGb,nrow=1,ncol=length(SGaGb))
-      }
-      if(sum(Gb)==1){
-        SGaGb<- matrix(SGaGb,ncol=1,nrow=length(SGaGb))
-      }
-      
-      # adjust for the change in Poisson prior if attaching Gb to node 0 (idx 1 in R program here)
-      SGaGb[1,] <- SGaGb[1,] + log(lambda) - log(Kstar+1) 
-      
-      ########
-      rgumbel<- -log(-log(runif(length(SGaGb))))
-      SGaGbGumbel<- SGaGb+ rgumbel
-      
-      GaIdx<- c(1:(n+1))[Ga]
-      GbIdx<- c(1:(n+1))[Gb]
-      
-      GaIdx1<- rep(GaIdx,length(GbIdx))
-      GbIdx1<- rep(GbIdx,each= length(GaIdx))
-      
-      picked_i <- GaIdx1[which.max(SGaGbGumbel)]
-      picked_j <- GbIdx1[which.max(SGaGbGumbel)]
-      
-      b_vec<- B[,k]
-      B[,k]<- 0
-      B[picked_i,k]<- 1
-      B[picked_j,k]<- -1
-        
-      G$connect(picked_i-1, picked_j-1)    # connect, reduce idx by 1 to make it 0-based
-        
-      if(sum(abs(B[,k]- b_vec))>0){ # if we change B[,k], update C
-        
-        if(picked_i==1){ # add a cluster
-          C[Gb]<- min(setdiff(c(1:(n)),C[Ga]))
-        }else{
-          C[Gb]<- C[picked_i]
-        }
-      }
-    }
-    
-    # relabeling C to minimize the hamming distance with last C
-    
-        idxC = min(setdiff(c(1:(n)),C))
-        while(idxC< max(C)){
-            C[C==max(C)] = idxC
-            idxC = min(setdiff(c(1:(n)),C))
-        }
-    #     C<- relabelC2(cur_C,C)
-    
-    
-    A<- getA(B)
-    
     
     # update sigma2
     A_without_node0<- A[-1,-1]
@@ -256,18 +167,21 @@ clusteringFP <- function(X, Total_itr = 10000, burn=5000, gamma =1, lambda=1, ra
     
     Sf <- logden_f(d2 = DisMat2, sigma2 = sig, p=p)
     S<- rbind(c(0,Sr), cbind(Sr,Sf))
+      
+#     S_prime = S + runif((n+1)**2, 
+
     diag(S)<- 0
-    
+    G$setS(S)
     
     
     if(itr > burn){
       listA[[itr-burn]] <- A 
-      listB[[itr-burn]] <- B 
+#       listB[[itr-burn]] <- B 
       listC[[itr-burn]] <- C[-1]
       listSig[[itr-burn]] <- sig
     }
     
-    Sys.sleep(0.1)
+#     Sys.sleep(0.1)
     # update progress bar
     setTxtProgressBar(pb, itr)
   }
