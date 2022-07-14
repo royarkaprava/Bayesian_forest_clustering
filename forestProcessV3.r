@@ -4,7 +4,7 @@ n <- 200
 p <- 2
 
 y<- matrix(rnorm(n*2),n,p)
-y[101:n,]<- y[101:n,]+5
+y[101:n,]<- y[101:n,]+6
 
 D<- as.matrix(dist(y))
 
@@ -105,10 +105,10 @@ updateLogS<- function(sigma_tilde,mu_r,gamma_r){
 
 sample_sigma_tilde<- function(A_T){
   
-  alpha_gamma =1
+  alpha_gamma = 0.5
   
   A_forest<- A_T[1:n,1:n] 
-  lam_gig<- -rowSums(A_forest)/2+1 + (alpha_gamma - 1)
+  lam_gig<- -rowSums(A_forest)/2+ (alpha_gamma)
   psi_gig <- 2/(mu_sigma_tilde)
   
   AD2<- A_forest * D**2
@@ -222,7 +222,7 @@ extractC <- function(A_T){
 trace_C<- lapply(trace_A_T, extractC)
 
 
-i= 200
+i= 500
 G<- graph_from_adjacency_matrix(trace_A_T[[i]][1:n,1:n],mode = "undirected")
 G$layout=y
 V(G)$color=trace_C[[i]]
