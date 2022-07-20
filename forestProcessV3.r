@@ -3,8 +3,9 @@ rm(list=ls())
 n <- 200
 p <- 2
 
-y<- matrix(rnorm(n*2),n,p)
-y[101:n,]<- y[101:n,]+6
+y<- matrix(rt(n*p,df = 3),n,p)
+
+y[101:n,]<- y[101:n,]+4
 
 D<- as.matrix(dist(y))
 
@@ -14,9 +15,7 @@ mu_sigma_tilde = apply(D, 1, function(x)min(x[x>0]))
 sigma_tilde<- mu_sigma_tilde
 sigma2<- outer(sigma_tilde, sigma_tilde, "*")
 
-
 mu_r0 <- colMeans(y)
-
 mu_r = mu_r0
 
 y_mu_r_2norm<- apply(t(t(y)-mu_r),1,function(x) sqrt(sum(x**2)))
@@ -159,6 +158,8 @@ n_iter = 1000
 trace_K<- numeric()
 trace_A_T<- list()
 
+trace_sigma_tilde<- list()
+
 pb <- txtProgressBar(min = 0,      # Minimum value of the progress bar
                      max = n_iter, # Maximum value of the progress bar
                      style = 3,    # Progress bar style (also available style = 1 and style = 2)
@@ -173,7 +174,6 @@ for (step in c(1:n_iter)){
   A_T <-drawT(logS)
   sigma_tilde<- sample_sigma_tilde(A_T)
   # sigma2<- outer(sigma_tilde, sigma_tilde, "*")
-  
   
   #MH to update r params:
   res<- randomWalkMH(param_mu_gamma_r,A_T,eps=eps_mh)
@@ -208,9 +208,9 @@ for (step in c(1:n_iter)){
   if (step> (n_iter/2)){
     trace_K<- c(trace_K, sum(A_T[n+1,]))
     trace_A_T[[step-(n_iter/2)]]<- A_T
+    trace_sigma_tilde[[step-(n_iter/2)]]<- sigma_tilde
   }
 }
-
 
 barplot(table(trace_K))
 
@@ -222,27 +222,35 @@ extractC <- function(A_T){
 trace_C<- lapply(trace_A_T, extractC)
 
 
-i= 500
-G<- graph_from_adjacency_matrix(trace_A_T[[i]][1:n,1:n],mode = "undirected")
-G$layout=y
-V(G)$color=trace_C[[i]]
-plot.igraph(G,vertex.size=5, vertex.label='')
 
 ts.plot(trace_K)
 
 C_mat<- matrix(0,n,n)
 
 for(C in trace_C){
-  C_mat = C_mat+ 1*outer(C,C,'==')
+    C_mat = C_mat+ 1*outer(C,C,'==')
 }
 
 image(C_mat)
 
-# plot( (C_mat/length(trace_C))[1,])
 
+A_T_mat<- matrix(0,n,n) 
 
-# G<- graph_from_adjacency_matrix(A_T[1:n,1:n],mode = "undirected")
-# G$layout=y
-# V(G)$color=trace_C[[i]]
-# plot.igraph(G,vertex.size=5, vertex.label='')
+for(A_T in trace_A_T){
+  A_T_mat = A_T_mat+ A_T[1:n,1:n]
+}
+A_T_mat = A_T_mat/length(trace_A_T)
 
+image(A_T_mat)
+
+require("kernlab")
+
+sc_fit<- specc(as.kernelMatrix(C_mat),centers=2)
+
+G_D<-graph_from_adjacency_matrix(A_T_mat, mode = "undirected",weighted = TRUE,diag=FALSE)
+G_D$layout=y
+V(G_D)$color = as.numeric(sc_fit)
+
+G_D<- delete.edges(G_D, E(G_D)[E(G_D)$weight< quantile(E(G_D)$weight,0.8)])
+
+plot.igraph(G_D,vertex.size=5, vertex.label='')
