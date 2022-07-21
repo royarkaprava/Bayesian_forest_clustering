@@ -1,11 +1,11 @@
 rm(list=ls())
 
 n <- 200
-p <- 5
+p <- 10
 
 y<- matrix(rt(n*p,df = 10),n,p)
 
-y[101:n,]<- y[101:n,]+2
+y[101:n,]<- y[101:n,]+ 5
 
 
 require(igraph)
@@ -54,13 +54,28 @@ logS[n+1,1:n]<- logS[1:n,n+1]
 diag(logS)<- -1E8
 
 
-G<- graph_from_adjacency_matrix(-logS, mode = "undirected",weighted = TRUE,diag=FALSE)
-G_mst<- mst(graph = G)
-A_T<- as.matrix(get.adjacency(G_mst))
+findMST<- function(logS){
+  G<- graph_from_adjacency_matrix(-logS, mode = "undirected",weighted = TRUE,diag=FALSE)
+  G_mst<- mst(graph = G)
+  A_T<- as.matrix(get.adjacency(G_mst))
+  A_T
+  }
+
+A_T<- findMST(logS)
+
 
 rgumbel<- function(n){
-    -log(-log(runif(n)))
+  -log(-log(runif(n)))
 }
+
+
+drawT_approx<- function(logS){
+  gumbelMat<- matrix(0,n+1,n+1)
+  gumbelMat[lower.tri(gumbelMat,diag = FALSE)]<- rgumbel((n+1)/2*(n))
+  gumbelMat<- gumbelMat+ t(gumbelMat)
+  A_T<- findMST(logS+gumbelMat)
+  A_T
+  }
 
 gumbelMax<- function(logA){
   which.max( logA+ rgumbel(length(logA)))
@@ -189,7 +204,8 @@ for (step in c(1:n_iter)){
   
   logS<- updateLogS(sigma_tilde,mu_r,gamma_r)
 
-  A_T <- drawT(logS)
+  # A_T <- drawT(logS)
+  A_T <- drawT_approx(logS)
   
   
   setTxtProgressBar(pb, step)
