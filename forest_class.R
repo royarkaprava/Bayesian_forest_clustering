@@ -41,10 +41,10 @@ Forest<- setRefClass("Forest",
                        },
                        
                        
-
                        
                        
-
+                       
+                       
                        
                        drawT_approx= function(logS){
                          gumbelMat<- matrix(0,n+1,n+1)
@@ -218,8 +218,23 @@ Forest<- setRefClass("Forest",
                          Z_d<<- as.integer(Z_d_)
                          Z<<- matrix(rnorm((n+1)*Z_d),nrow=n+1)
                          Z[n+1,]<<-0
+                       },
+                       
+                       
+                       useZforLogPrior = function(rho){
+                         z<- Z
+                         D2_z <- as.matrix(dist(z,upper = TRUE, diag = TRUE))**2
+                         
+                         z_logdensity<- matrix(0,n+1,n+1)
+                         
+                         z_logdensity[1:n,1:n] <-  - D2_z[1:n,1:n]/2/rho - Z_d* log(2*pi* rho)/2
+                         # z_logdensity[n+1,1:n] <-  - D2_z[n+1,1:n]/2/root_z_var - z_dim* log(2*pi* root_z_var)/2
+                         # z_logdensity[1:n,n+1]<- z_logdensity[n+1,1:n]
+                         diag(z_logdensity)<- 0
+                         
+                         logTreePrior<<- z_logdensity
                        }
-                     
+                       
                      )
 )
 
@@ -238,42 +253,72 @@ extractC <- function(A_T){
   components(G)$membership
 }
 
-sampleZ<- function(forest, z, rho = 0.01){
-  n<-forest$n
+rho = 0.01
 
-  root_z_var<- 1
-  
-  z_dim = ncol(z)
-  
-  z_var<- rep(rho,n+1)
-  z_var[n+1]<- root_z_var
-  
-  z[n+1,]<- 0
+# update those Z_Tilde
+
+sampleZ_tilde<- function(){
+  for(i in (1:n)){
+    for(l in (1:Z_K_tilde)){
+      subject_pick <- Z_k[i,]==l
+      if( sum(subject_pick)==0){
+        Z_tilde[i,,l] <<- rnorm(Z_d)
+      }else{
+        subject_idx<- c(1:S)[subject_pick]
+        
+        par1=0
+        par2=0
+        for(s in subject_idx){
+          par1 = par1 + forest_objs[[s]]$A_T[i,]%*% forest_objs[[s]]$Z
+          par2 = par2 + sum(forest_objs[[s]]$A_T[i,])
+        }
+        
+        var_local = 1/(1+ par2/rho)
+        mean_local = par1/rho*var_local
+        Z_tilde[i,,l]<<- rnorm(Z_d, 0,sqrt(var_local))+mean_local
+        
+        for(s in subject_idx){
+          forest_objs[[s]]$Z[i,] <<- Z_tilde[i,,l]
+        }
+      }
+    }
+  }
+}
+
+
+# update the assignment Z_k
+
+sampleZ_k<- function(){
   
   for(i in 1:n){
-      par1<- 1/sum(forest$A_T[i,]/z_var +1)
-      par2<- colSums(forest$A_T[i,]*z/z_var )
-      z[i,]<- rnorm(z_dim,par1 * par2,sqrt(par1))
+    v_local = v[i,]
+    
+    for(s in 1:S){
+      node_idx <- c(1:(n+1))[forest_objs[[s]]$A_T[i,]==1]
+      
+      Z_local<- forest_objs[[s]]$Z[node_idx,]
+      
+      logChoice<- rep(0,Z_K_tilde)
+      
+      for(l in 1:Z_K_tilde){
+        logChoice[l] = -sum((t(Z_local)-Z_tilde[i,,l])**2)/2/rho
+      }
+      
+      Z_k[i,s] <<- gumbelMax(logChoice+ log(v_local))
+      
+      forest_objs[[s]]$Z[i,] <<- Z_tilde[i,,Z_k[i,s]] 
+    }
   }
+}
 
-  # Laplacian<- function(A){
-  #   diag(rowSums(A)) - A
-  # }
-  # L <- Laplacian(forest$A_T)
+# update v:
+
+sampleV<- function(){
+  count_table = matrix(0, n, Z_K_tilde)
   
-  # L[n+1,1:n] = L[n+1,1:n]/root_z_var
-  # L[,n+1] = L[,n+1]/root_z_var
-  # 
-  # vari<- solve(L+diag(1,n+1))
-  # z<- t(chol(vari))%*%matrix(rnorm(n+1),n+1,1) + mu_mapto_z
+  for(l in 1:Z_K_tilde){
+    count_table[,l] = rowSums(Z_k==l)
+  }
   
-  D2_z <- as.matrix(dist(z,upper = TRUE, diag = TRUE))**2
-  
-  z_logdensity<- matrix(0,n+1,n+1)
-  
-  z_logdensity[1:n,1:n] <-  - D2_z[1:n,1:n]/2/rho - z_dim* log(2*pi* rho)/2
-  z_logdensity[n+1,1:n] <-  - D2_z[n+1,1:n]/2/root_z_var - z_dim* log(2*pi* root_z_var)/2
-  z_logdensity[1:n,n+1]<- z_logdensity[n+1,1:n]
-  diag(z_logdensity)<- 0
-  list(z,z_logdensity)
+  v<<- matrix(rdirichlet(1, c(count_table)+ 1/Z_K_tilde),nrow = n)
 }

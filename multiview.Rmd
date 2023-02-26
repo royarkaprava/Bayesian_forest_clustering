@@ -17,8 +17,8 @@ load("time_series_fmri_std.RDa")
 S <- length(timeseries_fmri_std)
 S
 
-#the above S is too large for coding, let me just use S=10 for now
-S = 10
+#for debug:
+# S = 10
 
 ```
 
@@ -35,19 +35,49 @@ forest_objs = list()
 
 for(s in 1:S){
   forest_objs[[s]]<- Forest$new()
-  forest_objs[[s]]$init(timeseries_fmri_std[[s]])
+  forest_objs[[s]]$init(timeseries_fmri_std[[s]][,1:50])
   forest_objs[[s]]$randomInitZ()
 }
 ```
+
+
+```{r}
+n<- forest_objs[[1]]$n
+Z_d<- forest_objs[[1]]$Z_d
+Z_K_tilde<- 5
+
+Z_tilde<-  array( rnorm(n*Z_d*Z_K_tilde), dim = c(n,Z_d,Z_K_tilde))
+
+Z_k<- matrix( as.numeric(sample(c(1:Z_K_tilde),n*S,replace=TRUE)), n)
+
+v<- matrix(1,n,Z_K_tilde)/Z_K_tilde
+
+# dim(Z_tilde)
+
+
+#passing Z_tilde into Z's in each forest
+for(s in 1:S){
+  for(i in 1:n){
+    forest_objs[[s]]$Z[i,] = Z_tilde[i,,Z_k[i,s]]
+  }
+}
+
+
+
+```
+
+
 
 ```{r}
 
 for(step in 1:1000){
   for(s in 1:S){
-    res<- sampleZ(forest_objs[[s]],forest_objs[[s]]$Z,rho = 0.01)
-    forest_objs[[s]]$Z<- res[[1]]
-    forest_objs[[s]]$logTreePrior<- res[[2]]
     forest_objs[[s]]$MCMC_oneScan()
+    
+    sampleZ_tilde()
+    sampleZ_k()
+    # sampleV()
+    forest_objs[[s]]$useZforLogPrior(rho)
   }
 }
 
@@ -98,7 +128,7 @@ for(step in 1:1000){
 
 ```{r}
 
-f1<- forest_objs[[1]]
+f1<- forest_objs[[2]]
 n<- f1$n
 
 sum(f1$A_T[n+1,])
