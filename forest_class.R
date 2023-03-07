@@ -221,19 +221,21 @@ Forest<- setRefClass("Forest",
                        },
                        
                        
-                       useZforLogPrior = function(rho){
+                       useZforLogPrior = function(rho1, rho2){
                          z<- Z
                          D2_z <- as.matrix(dist(z,upper = TRUE, diag = TRUE))**2
                          
                          z_logdensity<- matrix(0,n+1,n+1)
                          
-                         z_logdensity[1:n,1:n] <-  - D2_z[1:n,1:n]/2/rho - Z_d* log(2*pi* rho)/2
-                         # z_logdensity[n+1,1:n] <-  - D2_z[n+1,1:n]/2/root_z_var - z_dim* log(2*pi* root_z_var)/2
+                         z_logdensity[1:n,1:n] <-  - D2_z[1:n,1:n]/2/rho2 - Z_d* log(2*pi* rho2)/2
+                         # z_logdensity[n+1,1:n] <-  - D2_z[n+1,1:n]/2/rho2 - Z_d* log(2*pi* rho2)/2
                          # z_logdensity[1:n,n+1]<- z_logdensity[n+1,1:n]
                          diag(z_logdensity)<- 0
                          
                          logTreePrior<<- z_logdensity
                        }
+                                              
+                                              
                        
                      )
 )
@@ -253,36 +255,45 @@ extractC <- function(A_T){
   components(G)$membership
 }
 
-rho = 0.01
+                           
+# update eta_tilde
+                     
+sample_eta_tilde<- function(){
+                    for (l in 1: Z_K_tilde){
 
-# update those Z_Tilde
+                    Z_sel <- lapply(c(1:S), function(s)forest_objs[[s]]$Z[Z_k[,s]==l,])
 
-sampleZ_tilde<- function(){
-  for(i in (1:n)){
-    for(l in (1:Z_K_tilde)){
-      subject_pick <- Z_k[i,]==l
-      if( sum(subject_pick)==0){
-        Z_tilde[i,,l] <<- rnorm(Z_d)
-      }else{
-        subject_idx<- c(1:S)[subject_pick]
-        
-        par1=0
-        par2=0
-        for(s in subject_idx){
-          par1 = par1 + forest_objs[[s]]$A_T[i,]%*% forest_objs[[s]]$Z
-          par2 = par2 + sum(forest_objs[[s]]$A_T[i,])
-        }
-        
-        var_local = 1/(1+ par2/rho)
-        mean_local = par1/rho*var_local
-        Z_tilde[i,,l]<<- rnorm(Z_d, 0,sqrt(var_local))+mean_local
-        
-        for(s in subject_idx){
-          forest_objs[[s]]$Z[i,] <<- Z_tilde[i,,l]
-        }
-      }
-    }
+                    Z_sel<- do.call("rbind",Z_sel)
+
+                    par2 = 1/( nrow(Z_sel)/rho1 + 1)
+                    par1 = par2 * (colSums(Z_sel)/rho1)
+                    eta_tilde[l,]<<- rnorm(Z_d)* sqrt(par2) + par1
+                }}
+# update Z
+
+sampleZ<- function(rho1,rho2){
+
+  
+  for(s in 1:S){
+      
+    a =   forest_objs[[s]]$A_T
+    # a[n+1,] = a[n+1,]/(rho3/rho2)
+    # a[,n+1] = a[n+1,]
+    a[n+1,] = 0
+    a[,n+1] = a[n+1,]
+
+    L<- diag(rowSums(a))- a
+    L1n<- L[1:n,1:n]
+    
+    prec<- L1n/rho2 + diag(1/rho1,n)
+    
+    chol_prec<- t(chol(prec))
+    
+    z0<- chol_prec%*% matrix(rnorm(n*Z_d),n) + eta_tilde[Z_k[,s],]/rho1
+    
+    forest_objs[[s]]$Z[1:n,]<<- solve(prec,z0)
   }
+  
 }
 
 
@@ -290,35 +301,23 @@ sampleZ_tilde<- function(){
 
 sampleZ_k<- function(){
   
-  for(i in 1:n){
-    v_local = v[i,]
-    
-    for(s in 1:S){
-      node_idx <- c(1:(n+1))[forest_objs[[s]]$A_T[i,]==1]
-      
-      Z_local<- forest_objs[[s]]$Z[node_idx,]
-      
-      logChoice<- rep(0,Z_K_tilde)
-      
-      for(l in 1:Z_K_tilde){
-        logChoice[l] = -sum((t(Z_local)-Z_tilde[i,,l])**2)/2/rho
-      }
-      
-      Z_k[i,s] <<- gumbelMax(logChoice+ log(v_local))
-      
-      forest_objs[[s]]$Z[i,] <<- Z_tilde[i,,Z_k[i,s]] 
+  for(s in 1:S){
+    for(i in 1:n){
+      logChoice = -colSums( (t(eta_tilde) - forest_objs[[s]]$Z[i,])**2)/rho1/2 + log(v[i,])
+      Z_k[i,s]<<- gumbelMax(logChoice)
     }
   }
 }
 
 # update v:
 
-sampleV<- function(){
+sampleV<- function(alpha=1){
   count_table = matrix(0, n, Z_K_tilde)
   
   for(l in 1:Z_K_tilde){
     count_table[,l] = rowSums(Z_k==l)
   }
   
-  v<<- matrix(rdirichlet(1, c(count_table)+ 1/Z_K_tilde),nrow = n)
+  v<<- matrix(rdirichlet(1, c(count_table)+ alpha/Z_K_tilde),nrow = n)
 }
+                   
