@@ -1,3 +1,7 @@
+require("igraph")
+require("GIGrvg")
+require("gtools")
+require("RcppML")
 
 Forest<- setRefClass("Forest",  
                      fields = list(
@@ -19,7 +23,13 @@ Forest<- setRefClass("Forest",
                        logTreePrior = "matrix",
                        useFixedLogS = "logical",
                        Z="matrix",
-                       Z_d="integer"
+                       Z_d="integer",
+                       trace_A_T = "list",
+                       trace_C = "list",
+                       trace_sigma_tilde = "list",
+                       trace_gamma_r = "list",
+                     hierachical_prior="logical",
+                        eta_sigma = "numeric"
                      ),
                      methods = list(
                        
@@ -39,11 +49,6 @@ Forest<- setRefClass("Forest",
                          A_T_<- as.matrix(get.adjacency(G_mst))
                          A_T_
                        },
-                       
-                       
-                       
-                       
-                       
                        
                        
                        drawT_approx= function(logS){
@@ -116,21 +121,46 @@ Forest<- setRefClass("Forest",
                        },
                        
                        
-                       sample_sigma_tilde = function(A_T_){
+                        sample_sigma_tilde = function(A_T_){
                          
                          
                          A_forest<- A_T_[1:n,1:n] 
-                         lam_gig<- -rowSums(A_forest)/2*p + (alpha_gamma)
-                         psi_gig <- 2/(mu_sigma_tilde)
                          
-                         AD2<- A_forest * D**2
-                         
-                         for(i in c(1:n)){
-                           chi_gig_i<- sum(AD2[i,]/sigma_tilde)
-                           
-                           
-                           sigma_tilde[i]<<- rgig(1, lam_gig[i], chi_gig_i, psi_gig[i] )
-                         }
+                        
+                        if(hierachical_prior){
+                            
+                                a_sigma = 100
+                                b_sigma = 10
+                                xi_sigma = 1
+                                
+                                beta <- rgamma(1,  n* b_sigma + 1, rate = sum(1/sigma_tilde) + 1/eta_sigma)
+                                eta_sigma<<- 1/rgamma(1, a_sigma+ 1,rate = beta+ xi_sigma)
+   
+                                lam_gig<- rowSums(A_forest)/2*p + b_sigma
+
+                                 AD2<- A_forest * D**2
+
+                                 for(i in c(1:n)){
+                                   chi_gig_i<- sum(AD2[i,]/sigma_tilde)/2 + beta
+                                   sigma_tilde[i]<<- 1/ rgamma(1,  lam_gig[i],  rate = chi_gig_i)
+                                 }
+                        
+                        }
+                        else{
+
+                             lam_gig<- -rowSums(A_forest)/2*p + (alpha_gamma)
+                             psi_gig <- 2/(mu_sigma_tilde)
+
+                             AD2<- A_forest * D**2
+
+                             for(i in c(1:n)){
+                               chi_gig_i<- sum(AD2[i,]/sigma_tilde)
+
+
+                               sigma_tilde[i]<<- rgig(1, lam_gig[i], chi_gig_i, psi_gig[i] )
+                             }
+
+                        }
                        },
                        
                        
@@ -158,17 +188,22 @@ Forest<- setRefClass("Forest",
                        
                        
                        
-                       init = function(y_) {
+                       init = function(y_,use_hierachical_prior=FALSE) {
                          y <<- y_
                          n <<- nrow(y)
                          p <<- ncol(y)
                          D <<- as.matrix(dist(y))
                          mu_sigma_tilde <<- apply(D, 1, function(x)min(x[x>0]))/sqrt(p)
+                                                  eta_sigma<<- min(D[D>0])/sqrt(p)
+
                          
                          logTreePrior <<- matrix(0,n+1,n+1)
                          useFixedLogS <<- FALSE
                          fastTree <<- TRUE
                          updateRootLocation<<- FALSE
+                         hierachical_prior<<- use_hierachical_prior
+                         
+                                                  
                          alpha_gamma <<- 0.5
                          lam<<- 0.5
                          
@@ -208,10 +243,38 @@ Forest<- setRefClass("Forest",
                        },
                        
                        MCMC_oneScan= function(){
+                         drawT(logS)
                          sample_sigma_tilde(A_T)
                          sample_mu_r_gamma_r(mu_r,gamma_r,A_T)
                          updateLogS(sigma_tilde,mu_r,gamma_r)
-                         drawT(logS)
+                       },
+                                              
+                       MCMC_run_single_graph = function(n_iter= 1000, burnin=500){
+                           
+                      pb <- txtProgressBar(min = 0,      # Minimum value of the progress bar
+                       max = n_iter, # Maximum value of the progress bar
+                       style = 3,    # Progress bar style (also available style = 1 and style = 2)
+                       width = 50,   # Progress bar width. Defaults to getOption("width")
+                       char = "=")   # Character used to create the bar
+                           
+        
+                           
+                           for(step in 1:n_iter){
+                               
+                               MCMC_oneScan()
+                               if(step>burnin){
+                                   step1 = step - burnin
+                                   trace_A_T[[step1]]<<- A_T
+                                   trace_C[[step1]]<<- extractC(A_T[1:n,1:n])
+                                   trace_sigma_tilde[[step1]]<<- sigma_tilde
+                                   trace_gamma_r [[step1]]<<- gamma_r                              
+                               }
+                               
+                                 setTxtProgressBar(pb, step)
+                        
+        
+                           }
+                                                                     
                        },
                        
                        randomInitZ=function(Z_d_=2){
@@ -221,15 +284,15 @@ Forest<- setRefClass("Forest",
                        },
                        
                        
-                       useZforLogPrior = function(rho1, rho2){
+                       useZforLogPrior = function(sigma2_z, rho){
                          z<- Z
                          D2_z <- as.matrix(dist(z,upper = TRUE, diag = TRUE))**2
                          
                          z_logdensity<- matrix(0,n+1,n+1)
                          
-                         z_logdensity[1:n,1:n] <-  - D2_z[1:n,1:n]/2/rho2 - Z_d* log(2*pi* rho2)/2
-                         # z_logdensity[n+1,1:n] <-  - D2_z[n+1,1:n]/2/rho2 - Z_d* log(2*pi* rho2)/2
-                         # z_logdensity[1:n,n+1]<- z_logdensity[n+1,1:n]
+                         z_logdensity[1:n,1:n] <-  - D2_z[1:n,1:n]/2/rho - Z_d* log(2*pi* rho)/2
+                         # z_logdensity[n+1,1:n] <-  - D2_z[n+1,1:n]/2/rho - Z_d* log(2*pi* rho)/2
+                         # z_logdensity[1:n,n+1] <-  z_logdensity[n+1,1:n]
                          diag(z_logdensity)<- 0
                          
                          logTreePrior<<- z_logdensity
@@ -251,45 +314,44 @@ gumbelMax = function(logA){
 }
 
 extractC <- function(A_T){
-  G<- graph_from_adjacency_matrix(A_T[1:n,1:n],mode = "undirected")
+  G<- graph_from_adjacency_matrix(A_T,mode = "undirected")
   components(G)$membership
 }
 
                            
-# update eta_tilde
+# update eta_star
                      
-sample_eta_tilde<- function(){
+sample_eta_star<- function(){
                     for (l in 1: Z_K_tilde){
 
                     Z_sel <- lapply(c(1:S), function(s)forest_objs[[s]]$Z[Z_k[,s]==l,])
 
                     Z_sel<- do.call("rbind",Z_sel)
 
-                    par2 = 1/( nrow(Z_sel)/rho1 + 1)
-                    par1 = par2 * (colSums(Z_sel)/rho1)
-                    eta_tilde[l,]<<- rnorm(Z_d)* sqrt(par2) + par1
+                    par2 = 1/( nrow(Z_sel)/sigma2_z + 1/10)
+                    par1 = par2 * (colSums(Z_sel)/sigma2_z)
+                    eta_star[l,]<<- rnorm(Z_d)* sqrt(par2) + par1
                 }}
 # update Z
 
-sampleZ<- function(rho1,rho2){
+sampleZ<- function(sigma2_z,rho){
 
   
   for(s in 1:S){
       
     a =   forest_objs[[s]]$A_T
-    # a[n+1,] = a[n+1,]/(rho3/rho2)
-    # a[,n+1] = a[n+1,]
+
     a[n+1,] = 0
     a[,n+1] = a[n+1,]
 
     L<- diag(rowSums(a))- a
     L1n<- L[1:n,1:n]
     
-    prec<- L1n/rho2 + diag(1/rho1,n)
+    prec<- L1n/rho + diag(1/sigma2_z,n)
     
     chol_prec<- t(chol(prec))
     
-    z0<- chol_prec%*% matrix(rnorm(n*Z_d),n) + eta_tilde[Z_k[,s],]/rho1
+    z0<- chol_prec%*% matrix(rnorm(n*Z_d),n) + eta_star[Z_k[,s],]/sigma2_z
     
     forest_objs[[s]]$Z[1:n,]<<- solve(prec,z0)
   }
@@ -303,7 +365,7 @@ sampleZ_k<- function(){
   
   for(s in 1:S){
     for(i in 1:n){
-      logChoice = -colSums( (t(eta_tilde) - forest_objs[[s]]$Z[i,])**2)/rho1/2 + log(v[i,])
+      logChoice = -colSums( (t(eta_star) - forest_objs[[s]]$Z[i,])**2)/sigma2_z/2 + log(v[i,])
       Z_k[i,s]<<- gumbelMax(logChoice)
     }
   }
@@ -321,3 +383,69 @@ sampleV<- function(alpha=1){
   v<<- matrix(rdirichlet(1, c(count_table)+ alpha/Z_K_tilde),nrow = n)
 }
                    
+                                    
+                                    
+                                    
+# other function
+                                    
+
+require("clue")
+
+matchAtoB<- function(clusteringA, clusteringB){
+  # labels from cluster A will be matched on the labels from cluster B
+  minWeightBipartiteMatching <- function(clusteringA, clusteringB) {
+    require(clue)
+    idsA <- unique(clusteringA)  # distinct cluster ids in a
+    idsB <- unique(clusteringB)  # distinct cluster ids in b
+    nA <- length(clusteringA)  # number of instances in a
+    nB <- length(clusteringB)  # number of instances in b
+    if (length(idsA) != length(idsB) || nA != nB) {
+      stop("number of cluster or number of instances do not match")
+    }
+    nC <- length(idsA)
+    tupel <- c(1:nA)
+    # computing the distance matrix
+    assignmentMatrix <- matrix(rep(-1, nC * nC), nrow = nC)
+    for (i in 1:nC) {
+      tupelClusterI <- tupel[clusteringA == i]
+      solRowI <- sapply(1:nC, function(i, clusterIDsB, tupelA_I) {
+        nA_I <- length(tupelA_I)  # number of elements in cluster I
+        tupelB_I <- tupel[clusterIDsB == i]
+        nB_I <- length(tupelB_I)
+        nTupelIntersect <- length(intersect(tupelA_I, tupelB_I))
+        return((nA_I - nTupelIntersect) + (nB_I - nTupelIntersect))
+      }, clusteringB, tupelClusterI)
+      assignmentMatrix[i, ] <- solRowI
+    }
+    # optimization
+    result <- solve_LSAP(assignmentMatrix, maximum = FALSE)
+    attr(result, "assignmentMatrix") <- assignmentMatrix
+    return(result)
+  }
+  
+  matching<- minWeightBipartiteMatching(
+    clusteringA,clusteringB
+  )
+  
+  newClusteringA<- clusteringA
+  
+  tmp <- lapply(1:length(matching), function(i) {
+    newClusteringA[which(clusteringA== i)] <<- matching[i]
+  })
+  
+  
+  newClusteringA
+}
+
+clusteringAccu<- function(clustering,true_membership){
+  n<- length(true_membership)
+  sum(matchAtoB(clustering,true_membership)==true_membership)/n
+}
+                                    
+                                    
+getPointEstC<- function(C_mat, K){
+    nmf_fit<-nmf(C_mat, k=K, verbose = F)
+    as.numeric(kmeans(nmf_fit$w[,1:K],K)$cluster)
+    
+   # as.numeric(specc(as.kernelMatrix( fc_fit$C_mat),centers=K))
+}
