@@ -28,8 +28,8 @@ Forest<- setRefClass("Forest",
                        trace_C = "list",
                        trace_sigma_tilde = "list",
                        trace_gamma_r = "list",
-                     hierachical_prior="logical",
-                        eta_sigma = "numeric"
+                       hierachical_prior="logical",
+                       eta_sigma = "numeric"
                      ),
                      methods = list(
                        
@@ -448,4 +448,45 @@ getPointEstC<- function(C_mat, K){
     as.numeric(kmeans(nmf_fit$w[,1:K],K)$cluster)
     
    # as.numeric(specc(as.kernelMatrix( fc_fit$C_mat),centers=K))
+}
+                                    
+                                    
+                                    
+forestClust<- function(y, lam = 0.5,alpha_gamma = 0.5,n_iter = 1000, burnin=500,fastTree= TRUE, updateRootLocation=FALSE,
+                       logTreePrior= 0,
+                       useFixedLogS= FALSE,hierachical_prior= FALSE
+){
+    
+    forest<- Forest$new()
+
+    forest$init(y)
+    forest$useFixedLogS <- useFixedLogS
+    forest$fastTree <- fastTree
+    forest$updateRootLocation<- updateRootLocation
+    forest$hierachical_prior<- hierachical_prior
+    forest$lam <- lam
+    forest$alpha_gamma<- alpha_gamma
+    
+    if(length(logTreePrior)==1){
+         # do nothing
+    }else{
+        forest$logTreePrior<- logTreePrior
+    }
+    
+    forest$MCMC_run_single_graph(n_iter,burnin)
+    
+    
+    
+    trace_K<- lapply( forest$trace_A_T, function(x){sum(x[forest$n+1,])})
+
+    
+     res<- list(
+        "K" = trace_K,
+        "A_T" = forest$trace_A_T,
+        "sigma_tilde" = forest$trace_sigma_tilde,
+        "C" = forest$trace_C,
+        "gamma_r" =  forest$trace_gamma_r
+      )
+    
+    return(res)
 }

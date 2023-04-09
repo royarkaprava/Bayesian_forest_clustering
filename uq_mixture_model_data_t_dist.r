@@ -1,4 +1,4 @@
-source("forestProcess.r")
+source("forest_class.R")
 
 
 
