@@ -20,14 +20,23 @@ require("mclust")
 fc_fit<-forestClust(y,lam = 0.5,n_iter = 1000,burnin = 500)
 
 
-barplot(table(fc_fit$K)/500)
+
 
 
 require("fields")
 
 
-image.plot(fc_fit$C_mat/500)
+#uncertainty estimate
 
-point_est_C<- getPointEstC(fc_fit,K=2)
+C_mat<- getCoAssignmentMat(fc_fit$C)
 
+require("fields")
+image.plot(C_mat)
+
+#point estimate
+point_est_C<- getPointEstC(C_mat,K=2)
 plot(y[,1],y[,2],xlab="",ylab="",col=point_est_C)
+
+# number of clusters
+barplot(table(do.call("c",fc_fit$K))/500)
+
