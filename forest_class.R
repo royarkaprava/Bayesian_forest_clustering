@@ -121,46 +121,46 @@ Forest<- setRefClass("Forest",
                        },
                        
                        
-                        sample_sigma_tilde = function(A_T_){
+                       sample_sigma_tilde = function(A_T_){
                          
                          
                          A_forest<- A_T_[1:n,1:n] 
                          
-                        
-                        if(hierachical_prior){
-                            
-                                a_sigma = 100
-                                b_sigma = 10
-                                xi_sigma = 1
-                                
-                                beta <- rgamma(1,  n* b_sigma + 1, rate = sum(1/sigma_tilde) + 1/eta_sigma)
-                                eta_sigma<<- 1/rgamma(1, a_sigma+ 1,rate = beta+ xi_sigma)
-   
-                                lam_gig<- rowSums(A_forest)/2*p + b_sigma
-
-                                 AD2<- A_forest * D**2
-
-                                 for(i in c(1:n)){
-                                   chi_gig_i<- sum(AD2[i,]/sigma_tilde)/2 + beta
-                                   sigma_tilde[i]<<- 1/ rgamma(1,  lam_gig[i],  rate = chi_gig_i)
-                                 }
-                        
-                        }
-                        else{
-
-                             lam_gig<- -rowSums(A_forest)/2*p + (alpha_gamma)
-                             psi_gig <- 2/(mu_sigma_tilde)
-
-                             AD2<- A_forest * D**2
-
-                             for(i in c(1:n)){
-                               chi_gig_i<- sum(AD2[i,]/sigma_tilde)
-
-
-                               sigma_tilde[i]<<- rgig(1, lam_gig[i], chi_gig_i, psi_gig[i] )
-                             }
-
-                        }
+                         
+                         if(hierachical_prior){
+                           
+                           a_sigma = 100
+                           b_sigma = 10
+                           xi_sigma = 1
+                           
+                           beta <- rgamma(1,  n* b_sigma + 1, rate = sum(1/sigma_tilde) + 1/eta_sigma)
+                           eta_sigma<<- 1/rgamma(1, a_sigma+ 1,rate = beta+ xi_sigma)
+                           
+                           lam_gig<- rowSums(A_forest)/2*p + b_sigma
+                           
+                           AD2<- A_forest * D**2
+                           
+                           for(i in c(1:n)){
+                             chi_gig_i<- sum(AD2[i,]/sigma_tilde)/2 + beta
+                             sigma_tilde[i]<<- 1/ rgamma(1,  lam_gig[i],  rate = chi_gig_i)
+                           }
+                           
+                         }
+                         else{
+                           
+                           lam_gig<- -rowSums(A_forest)/2*p + (alpha_gamma)
+                           psi_gig <- 2/(mu_sigma_tilde)
+                           
+                           AD2<- A_forest * D**2
+                           
+                           for(i in c(1:n)){
+                             chi_gig_i<- sum(AD2[i,]/sigma_tilde)
+                             
+                             
+                             sigma_tilde[i]<<- rgig(1, lam_gig[i], chi_gig_i, psi_gig[i] )
+                           }
+                           
+                         }
                        },
                        
                        
@@ -194,8 +194,8 @@ Forest<- setRefClass("Forest",
                          p <<- ncol(y)
                          D <<- as.matrix(dist(y))
                          mu_sigma_tilde <<- apply(D, 1, function(x)min(x[x>0]))/sqrt(p)
-                                                  eta_sigma<<- min(D[D>0])/sqrt(p)
-
+                         eta_sigma<<- min(D[D>0])/sqrt(p)
+                         
                          
                          logTreePrior <<- matrix(0,n+1,n+1)
                          useFixedLogS <<- FALSE
@@ -203,7 +203,7 @@ Forest<- setRefClass("Forest",
                          updateRootLocation<<- FALSE
                          hierachical_prior<<- use_hierachical_prior
                          
-                                                  
+                         
                          alpha_gamma <<- 0.5
                          lam<<- 0.5
                          
@@ -248,33 +248,33 @@ Forest<- setRefClass("Forest",
                          sample_mu_r_gamma_r(mu_r,gamma_r,A_T)
                          updateLogS(sigma_tilde,mu_r,gamma_r)
                        },
-                                              
+                       
                        MCMC_run_single_graph = function(n_iter= 1000, burnin=500){
+                         
+                         pb <- txtProgressBar(min = 0,      # Minimum value of the progress bar
+                                              max = n_iter, # Maximum value of the progress bar
+                                              style = 3,    # Progress bar style (also available style = 1 and style = 2)
+                                              width = 50,   # Progress bar width. Defaults to getOption("width")
+                                              char = "=")   # Character used to create the bar
+                         
+                         
+                         
+                         for(step in 1:n_iter){
                            
-                      pb <- txtProgressBar(min = 0,      # Minimum value of the progress bar
-                       max = n_iter, # Maximum value of the progress bar
-                       style = 3,    # Progress bar style (also available style = 1 and style = 2)
-                       width = 50,   # Progress bar width. Defaults to getOption("width")
-                       char = "=")   # Character used to create the bar
-                           
-        
-                           
-                           for(step in 1:n_iter){
-                               
-                               MCMC_oneScan()
-                               if(step>burnin){
-                                   step1 = step - burnin
-                                   trace_A_T[[step1]]<<- A_T
-                                   trace_C[[step1]]<<- extractC(A_T[1:n,1:n])
-                                   trace_sigma_tilde[[step1]]<<- sigma_tilde
-                                   trace_gamma_r [[step1]]<<- gamma_r                              
-                               }
-                               
-                                 setTxtProgressBar(pb, step)
-                        
-        
+                           MCMC_oneScan()
+                           if(step>burnin){
+                             step1 = step - burnin
+                             trace_A_T[[step1]]<<- A_T
+                             trace_C[[step1]]<<- extractC(A_T[1:n,1:n])
+                             trace_sigma_tilde[[step1]]<<- sigma_tilde
+                             trace_gamma_r [[step1]]<<- gamma_r                              
                            }
-                                                                     
+                           
+                           setTxtProgressBar(pb, step)
+                           
+                           
+                         }
+                         
                        },
                        
                        randomInitZ=function(Z_d_=2){
@@ -297,8 +297,8 @@ Forest<- setRefClass("Forest",
                          
                          logTreePrior<<- z_logdensity
                        }
-                                              
-                                              
+                       
+                       
                        
                      )
 )
@@ -318,32 +318,32 @@ extractC <- function(A_T){
   components(G)$membership
 }
 
-                           
+
 # update eta_star
-                     
+
 sample_eta_star<- function(){
-                    for (l in 1: Z_K_tilde){
-
-                    Z_sel <- lapply(c(1:S), function(s)forest_objs[[s]]$Z[Z_k[,s]==l,])
-
-                    Z_sel<- do.call("rbind",Z_sel)
-
-                    par2 = 1/( nrow(Z_sel)/sigma2_z + 1/10)
-                    par1 = par2 * (colSums(Z_sel)/sigma2_z)
-                    eta_star[l,]<<- rnorm(Z_d)* sqrt(par2) + par1
-                }}
+  for (l in 1: Z_K_tilde){
+    
+    Z_sel <- lapply(c(1:S), function(s)forest_objs[[s]]$Z[Z_k[,s]==l,])
+    
+    Z_sel<- do.call("rbind",Z_sel)
+    
+    par2 = 1/( nrow(Z_sel)/sigma2_z + 1/10)
+    par1 = par2 * (colSums(Z_sel)/sigma2_z)
+    eta_star[l,]<<- rnorm(Z_d)* sqrt(par2) + par1
+  }}
 # update Z
 
 sampleZ<- function(sigma2_z,rho){
-
+  
   
   for(s in 1:S){
-      
+    
     a =   forest_objs[[s]]$A_T
-
+    
     a[n+1,] = 0
     a[,n+1] = a[n+1,]
-
+    
     L<- diag(rowSums(a))- a
     L1n<- L[1:n,1:n]
     
@@ -382,12 +382,12 @@ sampleV<- function(alpha=1){
   
   v<<- matrix(rdirichlet(1, c(count_table)+ alpha/Z_K_tilde),nrow = n)
 }
-                   
-                                    
-                                    
-                                    
+
+
+
+
 # other function
-                                    
+
 
 require("clue")
 
@@ -433,7 +433,6 @@ matchAtoB<- function(clusteringA, clusteringB){
     newClusteringA[which(clusteringA== i)] <<- matching[i]
   })
   
-  
   newClusteringA
 }
 
@@ -441,52 +440,63 @@ clusteringAccu<- function(clustering,true_membership){
   n<- length(true_membership)
   sum(matchAtoB(clustering,true_membership)==true_membership)/n
 }
-                                    
-                                    
-getPointEstC<- function(C_mat, K){
-    nmf_fit<-nmf(C_mat, k=K, verbose = F)
-    as.numeric(kmeans(nmf_fit$w[,1:K],K)$cluster)
-    
-   # as.numeric(specc(as.kernelMatrix( fc_fit$C_mat),centers=K))
+
+getCoAssignmentMat<- function(C_list){
+  
+  len<- length(C_list)
+  n<- length(C_list[[1]])
+  mat<- matrix(0,n,n)
+  
+  for(i in 1:len){
+    mat<- mat + outer(C_list[[i]],C_list[[i]],"==")
+  }
+  mat/len
 }
-                                    
-                                    
-                                    
+
+
+getPointEstC<- function(C_mat, K){
+  nmf_fit<-nmf(C_mat, k=K, verbose = F)
+  as.numeric(kmeans(nmf_fit$w[,1:K],K)$cluster)
+  # as.numeric(specc(as.kernelMatrix( fc_fit$C_mat),centers=K))
+}
+
+
+
 forestClust<- function(y, lam = 0.5,alpha_gamma = 0.5,n_iter = 1000, burnin=500,fastTree= TRUE, updateRootLocation=FALSE,
                        logTreePrior= 0,
                        useFixedLogS= FALSE,hierachical_prior= FALSE
 ){
-    
-    forest<- Forest$new()
-
-    forest$init(y)
-    forest$useFixedLogS <- useFixedLogS
-    forest$fastTree <- fastTree
-    forest$updateRootLocation<- updateRootLocation
-    forest$hierachical_prior<- hierachical_prior
-    forest$lam <- lam
-    forest$alpha_gamma<- alpha_gamma
-    
-    if(length(logTreePrior)==1){
-         # do nothing
-    }else{
-        forest$logTreePrior<- logTreePrior
-    }
-    
-    forest$MCMC_run_single_graph(n_iter,burnin)
-    
-    
-    
-    trace_K<- lapply( forest$trace_A_T, function(x){sum(x[forest$n+1,])})
-
-    
-     res<- list(
-        "K" = trace_K,
-        "A_T" = forest$trace_A_T,
-        "sigma_tilde" = forest$trace_sigma_tilde,
-        "C" = forest$trace_C,
-        "gamma_r" =  forest$trace_gamma_r
-      )
-    
-    return(res)
+  
+  forest<- Forest$new()
+  
+  forest$init(y)
+  forest$useFixedLogS <- useFixedLogS
+  forest$fastTree <- fastTree
+  forest$updateRootLocation<- updateRootLocation
+  forest$hierachical_prior<- hierachical_prior
+  forest$lam <- lam
+  forest$alpha_gamma<- alpha_gamma
+  
+  if(length(logTreePrior)==1){
+    # do nothing
+  }else{
+    forest$logTreePrior<- logTreePrior
+  }
+  
+  forest$MCMC_run_single_graph(n_iter,burnin)
+  
+  
+  
+  trace_K<- lapply( forest$trace_A_T, function(x){sum(x[forest$n+1,])})
+  
+  
+  res<- list(
+    "K" = trace_K,
+    "A_T" = forest$trace_A_T,
+    "sigma_tilde" = forest$trace_sigma_tilde,
+    "C" = forest$trace_C,
+    "gamma_r" =  forest$trace_gamma_r
+  )
+  
+  return(res)
 }
