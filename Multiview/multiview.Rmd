@@ -1,0 +1,145 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+require("igraph")
+require("GIGrvg")
+require("gtools")
+
+```
+
+```{r}
+setwd("~/git/Bayesian_forest_clustering/")
+
+load("time_series_fmri_std.RDa")
+
+S <- length(timeseries_fmri_std)
+S
+
+#for debug:
+# S = 10
+
+```
+
+
+```{r}
+source("forest_class.R")
+```
+
+
+```{r}
+#create a list of forest objects
+
+forest_objs = list()
+
+for(s in 1:S){
+  forest_objs[[s]]<- Forest$new()
+  forest_objs[[s]]$init(timeseries_fmri_std[[s]][,1:50])
+  forest_objs[[s]]$randomInitZ()
+}
+```
+
+
+```{r}
+n<- forest_objs[[1]]$n
+Z_d<- forest_objs[[1]]$Z_d
+Z_K_tilde<- 5
+
+Z_tilde<-  array( rnorm(n*Z_d*Z_K_tilde), dim = c(n,Z_d,Z_K_tilde))
+
+Z_k<- matrix( as.numeric(sample(c(1:Z_K_tilde),n*S,replace=TRUE)), n)
+
+v<- matrix(1,n,Z_K_tilde)/Z_K_tilde
+
+# dim(Z_tilde)
+
+
+#passing Z_tilde into Z's in each forest
+for(s in 1:S){
+  for(i in 1:n){
+    forest_objs[[s]]$Z[i,] = Z_tilde[i,,Z_k[i,s]]
+  }
+}
+
+
+
+```
+
+
+
+```{r}
+
+for(step in 1:1000){
+  for(s in 1:S){
+    forest_objs[[s]]$MCMC_oneScan()
+    
+    sampleZ_tilde()
+    sampleZ_k()
+    # sampleV()
+    forest_objs[[s]]$useZforLogPrior(rho)
+  }
+}
+
+
+```
+
+
+
+```{r}
+
+# 
+# z_K <- 10
+# z_alpha<- 0.5
+# 
+# z_dim <- 2
+
+
+# km_fit<- kmeans(z,z_K)
+# z_c <- km_fit$cluster
+# z_c[n+1]<- z_K+1
+# 
+# mu_z<- km_fit$centers
+# w_K<- rep(1,z_K)/z_K
+
+# 
+# sampleMuZ<- function(){
+#   
+#   for(k in 1:z_K){
+#     par1 = 1/( sum(z_c==k)/1.0 + 1/10)
+#     par2 = (sum(z[z_c==k])/1.0 + 0/10)
+#     mu_z[k]<<- rnorm(1,par1*par2, sqrt(par1))
+#   }
+#   
+#   d_z_mu_z<- outer( as.numeric(z), as.numeric(mu_z),"-")
+#   logCond<- dnorm(d_z_mu_z, mean = 0, sd = 1,log = TRUE)
+#   logCond<- t(t(logCond)+ log(w_K))
+#   z_c<<- apply(logCond, 1, gumbelMax)
+#   z_c[n+1]<- z_K+1
+#   
+#   c_counts <- sapply(c(1:z_K), function(k) sum(z_c==k))
+#   w_K<<- as.numeric(rdirichlet(1,c_counts+ z_alpha/z_K))
+# }
+
+```
+
+
+
+
+```{r}
+
+f1<- forest_objs[[2]]
+n<- f1$n
+
+sum(f1$A_T[n+1,])
+
+plot(f1$Z)
+for(i in 2:n){
+  for(j in 1:(i-1)){
+    if(f1$A_T[i,j]==1){
+      lines(f1$Z[c(i,j),1],f1$Z[c(i,j),2])
+    }
+  }
+}
+
+```
