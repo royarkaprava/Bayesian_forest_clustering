@@ -34,10 +34,18 @@ ev_M<- eigen(M)$vector[,1:4]
 ev_N<- eigen(-N)$vector[,1:4]
 
 # compare the eigenvectors side-by-side
+#dev.new()
 par(mfrow=c(3,2))
+mainvec <- c("Eigen vector 1","Eigen vector 2","Eigen vector 3")
 for(i in 1:3){
   # check sign:
   if (ev_M[,i]%*%ev_N[,i]<0)  ev_N[,i]<- -ev_N[,i]
-  plot(ev_M[,i])
-  plot(ev_N[,i])
+  if(i==1){
+    plot(ev_M[,i], type = 'l', main = "M", ylab = mainvec[i],xlab="")
+    plot(ev_N[,i], type = 'l', main = "N", ylab="",xlab="")
+  }
+  if(i>1){
+    plot(ev_M[,i], type = 'l', ylab = mainvec[i],xlab="")
+    plot(ev_N[,i], type = 'l', ylab = "",xlab="")
+  }
 }
