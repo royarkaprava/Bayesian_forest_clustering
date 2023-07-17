@@ -1,0 +1,639 @@
+---
+title: "Reproducibility report"
+output: html_document
+date: "2023-07-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=F}
+setwd("//file.phhp.ufl.edu/data/home/ark007/Documents/GitHub/Bayesian_forest_clustering")
+```
+
+## Figure 1 is an illustrative plot that can be generated using "clusterSim" R package, and does not require fitting of the Bayesian spanning forest model.
+
+```{r, echo=T}
+library(clusterSim)
+```
+
+## Figure 2 can be generated using "compare_eigenvectors.r".
+
+```{r, echo=T}
+source("compare_eigenvectors.r")
+```
+
+## Figure 3 can be generated using "uq_near_manifold.r".
+
+```{r, echo=T}
+source("Uncertainty_Quantification\\uq_near_manifold.r")
+```
+
+## Figure 4 and 5 can be generated using "fmri_application/multiview_fmri_application.Rmd".
+```{r}
+require("igraph")
+require("GIGrvg")
+require("gtools")
+
+setwd("~/git/Bayesian_forest_clustering/multiview_fmri_application/")
+
+load("time_series_fmri_std.RDa")
+
+S <- length(timeseries_fmri_std)
+S
+```
+
+```{r}
+load("fmri_labels.RDa")
+```
+
+```{r}
+labels0<- do.call("c",label_list)
+```
+
+```{r}
+ord_idx<- order(labels0)
+```
+
+```{r}
+labels <- labels0[ord_idx]
+```
+
+```{r}
+
+```
+
+```{r}
+source("../forest_class.R")
+
+
+#create a list of forest objects
+
+forest_objs = list()
+
+y_mat<- numeric()
+
+for(s in 1:S){
+  forest_objs[[s]]<- Forest$new()
+  forest_objs[[s]]$init(timeseries_fmri_std[[ord_idx[s]]][,1:120])
+  y_mat<- rbind(y_mat, (timeseries_fmri_std[[ord_idx[s]]][,1:120]))
+    
+  forest_objs[[s]]$randomInitZ(2)
+}
+
+n<- forest_objs[[1]]$n
+Z_d<- forest_objs[[1]]$Z_d
+Z_K_tilde<- 3^Z_d
+
+eta_star<- matrix(c(1:3),ncol=1)
+for(j in (1:(Z_d-1))){
+  eta_star<- rbind(cbind(eta_star,0),cbind(eta_star,1),cbind(eta_star,2))
+}
+
+
+Z_k<- matrix(kmeans(y_mat,centers= Z_K_tilde)$cluster,n,S,byrow = FALSE)
+# Z_k<- matrix( as.numeric(sample(c(1:Z_K_tilde),n*S,replace=TRUE)), n)
+
+v<- matrix(1,n,Z_K_tilde)/Z_K_tilde
+
+
+for(s in 1:S){
+    forest_objs[[s]]$Z = eta_star[Z_k[,s],] + rnorm(n*Z_d)*0.1
+    forest_objs[[s]]$Z<- rbind(forest_objs[[s]]$Z,0)
+}
+
+trace_Z_k<- list()
+
+Cmat_list<- list()
+for(s in 1:S){
+    Cmat_list[[s]]<- 0
+}
+
+n_iter= 100
+
+
+pb <- txtProgressBar(min = 0,      # Minimum value of the progress bar
+                       max = n_iter, # Maximum value of the progress bar
+                       style = 3,    # Progress bar style (also available style = 1 and style = 2)
+                       width = 50,   # Progress bar width. Defaults to getOption("width")
+                       char = "=")   # Character used to create the bar
+  
+# rho1= 0.5 #0.5 **2
+# rho2= 0.001 #0.1**2
+
+sigma2_z = 0.1**2
+rho= 1E-3
+
+for(step in 1:n_iter){
+  Z_k_copy<- Z_k
+    
+  for(s in 1:S){
+    forest_objs[[s]]$MCMC_oneScan()
+  }
+    
+    sampleZ(sigma2_z,rho)
+    sampleZ_k()
+    sampleV()
+    
+    # sample_eta_star()
+    
+    for(s in 1:S){
+          forest_objs[[s]]$useZforLogPrior(sigma2_z,rho)
+    }
+      
+    
+    # print( sum(sum(abs(Z_k_copy-Z_k)>0)))
+    
+    setTxtProgressBar(pb, step)
+
+    trace_Z_k[[step]]<- Z_k
+    
+    for(s in 1:S){
+        mem<- extractC(forest_objs[[s]]$A_T)
+        Cmat_list[[s]] = Cmat_list[[s]]+ outer(mem,mem,"==")*1
+    }
+
+}
+```
+
+```{r}
+require("fields")
+
+require("matlab")
+
+# plot(eta_star)
+```
+
+```{r}
+CN_idx <-  (1:S)[labels=="CN"]
+LCMI_idx <-  (1:S)[labels=="LMCI" |labels=="LMCI3"]
+```
+
+```{r}
+num_class_CN<- sapply(CN_idx,function(s) length(unique((extractC(forest_objs[[s]]$A_T)))))
+num_class_LCMI<- sapply(LCMI_idx,function(s) length(unique((extractC(forest_objs[[s]]$A_T)))))
+```
+
+```{r}
+Z_mat<- sapply(forest_objs, function(x){c(x$Z)})
+Z_dist<- as.matrix(dist(t(Z_mat),upper = TRUE, diag=TRUE))
+
+
+# png("z_dist.png",600,600,res = 100)
+par(cex.axis=2.0)
+
+# Z_dist[Z_dist<2.5]<- 2.5
+
+Z_dist<- t(apply(Z_dist,1,rev))
+# Z_dist<- apply(Z_dist,2,rev)
+
+image.plot(Z_dist,col = jet.colors(30), xaxt= "n", yaxt= "n" )
+axis(1, at = seq(0, 160/S, length.out =  5), labels= c(0:4)*40, las=1,
+     cex.lab=30)
+axis(2, at = 1-seq(0, 160/S, length.out =  5), labels= c(0:4)*40, las=1,
+     cex.lab=3
+    )
+
+# dev.off()
+```
+
+```{r}
+node_wise_total_var <- sapply(c(1:n),function(i){
+    
+    l1<- c(1:S)
+    Z_array<- t(sapply(l1, function(x){
+        forest_objs[[x]]$Z[i,]
+        }))
+    SS1<- sum(sum((t(Z_array) - colMeans(Z_array))**2))
+    
+    SS1/S/2
+    })
+```
+
+```{r}
+node_wise_resid_var <- sapply(c(1:n),function(i){
+    
+    l1<- CN_idx
+    Z_array<- t(sapply(l1, function(x){
+        forest_objs[[x]]$Z[i,]
+        }))
+    SS1 <-  sum(sum((t(Z_array) - colMeans(Z_array))**2))
+    
+    l2<- LCMI_idx
+    Z_array<- t(sapply(l2, function(x){
+        forest_objs[[x]]$Z[i,]
+        }))
+    SS2 <-  sum(sum((t(Z_array) - colMeans(Z_array))**2))
+    
+    (SS1+SS2)/S/2
+    })
+```
+
+```{r}
+node_wise_resid_var_CN <- sapply(c(1:n),function(i){
+    
+    l1<- CN_idx
+    Z_array<- t(sapply(l1, function(x){
+        forest_objs[[x]]$Z[i,]
+        }))
+    SS1 <-  sum(sum((t(Z_array) - colMeans(Z_array))**2))
+    
+    SS1/nrow(Z_array)/2
+    })
+```
+
+```{r}
+node_wise_resid_var_LCMI <- sapply(c(1:n),function(i){
+    
+    l1<- LCMI_idx
+    Z_array<- t(sapply(l1, function(x){
+        forest_objs[[x]]$Z[i,]
+        }))
+    SS1 <-  sum(sum((t(Z_array) - colMeans(Z_array))**2))
+    
+    SS1/nrow(Z_array)/2
+    })
+```
+
+```{r}
+
+```
+
+```{r}
+node_wise_resid_var_LCMI <- sapply(c(1:n),function(i){
+    
+    l1<- LCMI_idx
+    Z_array<- t(sapply(l1, function(x){
+        forest_objs[[x]]$Z[i,]
+        }))
+    SS1 <-  sum(sum((t(Z_array) - colMeans(Z_array))**2))
+    
+    SS1/nrow(Z_array)/2
+    })
+```
+
+```{r}
+coords<- read.table("centroid.txt")
+```
+
+```{r}
+hippocampus_sel <- c(1:n)[(coords$V3<60 &coords$V3>50 & coords$V4<35) | (coords$V3<23 & coords$V4>49)]
+pcl_sel <- c(1:n)[(coords$V3>0 & coords$V4>63) | (coords$V3>75 & coords$V4>55)]
+```
+
+```{r}
+node_wise_hippocampus_cn <- lapply(hippocampus_sel,function(i){
+    
+    l1<- CN_idx
+    Z_array<- t(sapply(l1, function(x){
+        forest_objs[[x]]$Z[i,]
+        }))
+    
+    Z_array
+    })
+
+node_wise_hippocampus_lcmi <- lapply(hippocampus_sel,function(i){
+    
+    l1<- LCMI_idx
+    Z_array<- t(sapply(l1, function(x){
+        forest_objs[[x]]$Z[i,]
+        }))
+    
+    Z_array
+    })
+
+
+node_wise_pcl_cn <- lapply(pcl_sel,function(i){
+    
+    l1<- CN_idx
+    Z_array<- t(sapply(l1, function(x){
+        forest_objs[[x]]$Z[i,]
+        }))
+    
+    Z_array
+    })
+
+node_wise_pcl_lcmi <- lapply(pcl_sel,function(i){
+    
+    l1<- LCMI_idx
+    Z_array<- t(sapply(l1, function(x){
+        forest_objs[[x]]$Z[i,]
+        }))
+    
+    Z_array
+    })
+```
+
+```{r}
+require("reshape")
+require("ggplot2")
+```
+
+```{r}
+# hippocampus regions
+roi_names = c("HIP.L","PHG.L","SOG.L", "SOG.R", "HIP.R", "PHG.R")
+
+df1<- sapply(c(1:6), function(k){ 
+    mat<- node_wise_hippocampus_cn[[k]]
+    rowSums(mat)
+})
+colnames(df1)<- roi_names
+              
+df2<- sapply(c(1:6), function(k){ 
+    mat<- node_wise_hippocampus_lcmi[[k]]
+    rowSums(mat)
+})
+colnames(df2)<- roi_names
+
+
+df1<- melt(df1)
+df1$X1<- "Healthy"
+
+df2<- melt(df2)
+df2$X1<- "Diseased"
+
+df3<- rbind(df1,df2)
+
+colnames(df3)<- c("Group","Region","Value")
+
+df3$Region<- factor(df3$Region, levels = c("HIP.L", "HIP.R","PHG.L", "PHG.R", "SOG.L", "SOG.R"))
+df3$Group<- factor(df3$Group, levels = c("Healthy","Diseased"))
+
+# png("brain_boxplot_hippo.png",1000,600,res = 100)
+
+ggplot(df3, aes(x = Region, y = Value, fill = Group)) +
+  # geom_violin() +
+  geom_boxplot(alpha = 0.5, outlier.shape = "") +
+  scale_fill_manual(values = c("dodgerblue2", "orange")) +
+  xlab("Region of Interest") +
+  ylab("Value")+theme_bw()+ theme(
+                  text = element_text(size = 30),axis.text.x = element_text(angle = 45, hjust = 1)
+                 )
+
+# dev.off()
+```
+
+```{r}
+validation_X1<- rbind(do.call("cbind",node_wise_hippocampus_cn), do.call("cbind",node_wise_hippocampus_lcmi))
+validation_X2<- rbind(do.call("cbind",node_wise_pcl_cn), do.call("cbind",node_wise_pcl_lcmi))
+```
+
+```{r}
+validation_X<- cbind(validation_X1,validation_X2)
+validation_y<- c( rep(1, length(CN_idx)),rep(0, length(LCMI_idx)))
+```
+
+```{r}
+library(pROC)
+```
+
+```{r}
+glm_fit <- glm(validation_y ~ validation_X, family = binomial)
+prob <- predict(glm_fit, type = "response")
+roc <- roc(validation_y, prob)
+auc <- auc(roc)
+
+auc
+```
+
+```{r}
+glm_fit <- glm(validation_y ~ validation_X1, family = binomial)
+prob <- predict(glm_fit, type = "response")
+roc <- roc(validation_y, prob)
+auc <- auc(roc)
+
+auc
+```
+
+```{r}
+glm_fit <- glm(validation_y ~ validation_X2, family = binomial)
+prob <- predict(glm_fit, type = "response")
+roc <- roc(validation_y, prob)
+auc <- auc(roc)
+
+auc
+```
+
+```{r}
+library(glmnet)
+
+
+validation_full_z<- t(Z_mat)
+
+glm_fit <- glmnet(validation_full_z,validation_y, family = binomial, alpha = 1,intercept = TRUE)
+
+```
+
+```{r}
+prob <- predict(glm_fit, newx = validation_full_z, type = "response")
+
+```
+
+```{r}
+roc <- roc(validation_y, prob[,23])
+auc <- auc(roc)
+
+auc
+```
+
+```{r}
+
+```
+
+```{r}
+# pcl regions
+roi_names = c("SPG.L","SFGdor.L","PCL.L","SMA.L","PCL.R" ,"SMA.R", "SPG.R", "SFGdor.R")
+
+df1<- sapply(c(1:8),function(k){ 
+    mat<- node_wise_pcl_cn[[k]]
+    rowSums(mat)
+})
+colnames(df1)<- roi_names
+              
+df2<- sapply(c(1:8),  function(k){ 
+    mat<- node_wise_pcl_lcmi[[k]]
+    rowSums(mat)
+})
+colnames(df2)<- roi_names
+
+
+df1<- melt(df1)
+df1$X1<- "Healthy"
+
+df2<- melt(df2)
+df2$X1<- "Diseased"
+
+df3<- rbind(df1,df2)
+
+colnames(df3)<- c("Group","Region","Value")
+
+df3$Region<- factor(df3$Region, levels = c("PCL.L","PCL.R" , "SPG.L","SPG.R", "SFGdor.L","SFGdor.R","SMA.L","SMA.R"))
+df3$Group<- factor(df3$Group, levels = c("Healthy","Diseased"))
+
+# png("brain_boxplot_pcl.png",1000,600,res = 100)
+
+ggplot(df3, aes(x = Region, y = Value, fill = Group)) +
+  # geom_violin() +
+  geom_boxplot(alpha = 0.5, outlier.shape = "") +
+  scale_fill_manual(values = c("dodgerblue2", "orange")) +
+  xlab("Region of Interest") +
+  ylab("Value")+theme_bw()+ theme(
+                  text = element_text(size = 30),
+                  axis.text.x = element_text(angle = 45, hjust = 1)
+                 )
+
+# dev.off()
+```
+
+```{r}
+full_roi_names<- read.table("regionname.txt")
+```
+
+```{r}
+library("ggrepel")  
+```
+
+```{r}
+require("brainGraph")
+```
+
+```{r}
+coords_aal<- cbind(aal116$name,aal116$x.mni,aal116$y.mni,aal116$z.mni)
+```
+
+```{r}
+coords_aal[,2:4]<- as.numeric(coords_aal[,2:4])
+```
+
+```{r}
+df<- data.frame(coords_aal)
+```
+
+```{r}
+node_wise_icc<-  1 - node_wise_resid_var/node_wise_total_var
+
+# png("node_z_brain_icc.png",700,600,res = 100)
+
+ggplot()+ geom_point(aes(x=coords$V3,y=coords$V4,col=node_wise_icc),size=5)+
+theme_bw()+ theme(legend.title=element_blank(),
+                  text = element_text(size = 30),
+                 )+ xlab("") + ylab("")  +
+scale_color_gradientn(colors = jet.colors(60),limits=c(0., .4))+
+theme(plot.margin = margin(1,1,1,1, "cm"))
+
+# dev.off()
+```
+
+```{r}
+# png("node_z_var_brain_CN.png",700,600,res = 100)
+
+ggplot()+ geom_point(aes(x=coords$V3,y=coords$V4,col= (node_wise_resid_var_CN)),size=5)+
+theme_bw()+ theme(legend.title=element_blank(),
+                  text = element_text(size = 30),
+                 )+ xlab("") + ylab("")  +
+scale_color_gradientn(colors = jet.colors(60),limits=c(0,0.7))+
+theme(plot.margin = margin(1,1,1,1, "cm"))
+
+# dev.off()
+```
+
+```{r}
+# png("node_z_var_brain_LCMI.png",700,600,res = 100)
+
+ggplot()+ geom_point(aes(x=coords$V3,y=coords$V4,col= (node_wise_resid_var_LCMI)),size=5)+
+theme_bw()+ theme(legend.title=element_blank(),
+                  text = element_text(size = 30),
+                 )+ xlab("") + ylab("")  +
+scale_color_gradientn(colors = jet.colors(60) ,limits=c(0., 0.7))+
+theme(plot.margin = margin(1,1,1,1, "cm"))
+
+# dev.off()
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+Z_dist<- as.matrix(dist(t(Z_mat),upper = TRUE, diag=TRUE))
+```
+
+```{r}
+diag(Z_dist)<- Inf
+```
+
+```{r}
+Z_dist_cn<- Z_dist[CN_idx,CN_idx]
+```
+
+```{r}
+sel_subs_cn<- CN_idx[apply(Z_dist_cn== min(Z_dist_cn),1,any)]
+```
+
+
+## Figure S.1, S.2 and Table S.1 can be generated using "high_dim_application/uq_high_dimesion_clustering.r".
+
+```{r, echo=T}
+source("High_dimensional_application/uq_high_dimesion_clustering.r")
+```
+
+## Figure S.3 can be generated using "covariate_dependent_clustering/penguins.Rmd".
+
+```{r, echo=T}
+
+```
+
+## Figure S.4 and S.5 can be generated using "uq_mixture_model_data_t_dist.r".
+
+```{r, echo=T}
+
+```
+
+## Figure S.6 can be generated using "uq_near_manifold.r".
+
+```{r, echo=T}
+
+```
+
+## Figure S.7, S.8, S.9 can be generated using "simulations/imbalanced_vs_clusteringErr.Rmd", "simulations/num_clusters_vs_clusteringErr.Rmd", and "simulations/loosely_connected_graphs_vs_clusteringErr.Rmd". For the convenience of review, the repeated experiment results are stored in the "RDa" binary files.
+
+```{r, echo=T}
+
+```
+
+## Figure S.10, S.11, S.12 can be generated using "simulations/mixing_diagnostics_multiple_initialization.Rmd".
+
+```{r, echo=T}
+
+```
+
+## Figure S.13 can be generated using "multiview_fmri_application/multiview_fmri_application.Rmd".
+
+```{r, echo=T}
+
+```
+
+## Figure S.14 can be generated using "uq_mixture_model_data_t_dist.r".
+
+```{r, echo=T}
+
+```
+
+## Figure S.15 can be generated using "compare_eigenvectors.r".
+
+```{r, echo=T}
+
+```
