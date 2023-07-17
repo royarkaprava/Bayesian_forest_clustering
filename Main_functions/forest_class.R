@@ -464,7 +464,7 @@ getPointEstC<- function(C_mat, K){
 
 forestClust<- function(y, lam = 0.5,alpha_gamma = 0.5,n_iter = 1000, burnin=500,fastTree= TRUE, updateRootLocation=FALSE,
                        logTreePrior= 0,
-                       useFixedLogS= FALSE,hierachical_prior= FALSE
+                       useFixedLogS= FALSE,fixedLogS,hierachical_prior= FALSE
 ){
   
   forest<- Forest$new()
