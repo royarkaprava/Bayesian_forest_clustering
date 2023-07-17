@@ -17,9 +17,9 @@ require("igraph")
 require("GIGrvg")
 require("gtools")
 
-setwd("~/git/Bayesian_forest_clustering/multiview_fmri_application/")
+setwd("//file.phhp.ufl.edu/data/home/ark007/Documents/GitHub/Bayesian_forest_clustering")
 
-load("time_series_fmri_std.RDa")
+load("fMRI_application/time_series_fmri_std.RDa")
 
 S <- length(timeseries_fmri_std)
 S
@@ -46,8 +46,10 @@ labels <- labels0[ord_idx]
 ```
 
 ```{r}
-source("../forest_class.R")
+source("Main_functions\\forest_class.R")
+```
 
+```{r}
 
 #create a list of forest objects
 
