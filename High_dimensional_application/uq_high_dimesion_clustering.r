@@ -60,7 +60,7 @@ fixedLogS[1:n,1:n]<-  10*Z2 + log(Z2!=0)
 
 fc_fit<- forestClust(Z,useFixedLogS = TRUE, fixedLogS = fixedLogS,n_iter = 500,burnin = 0)
 
-barplot(table(fc_fit$K))
+barplot(table(unlist(fc_fit$K)))
 
 res<- sapply(c(1:20), function(i){
     fc_fit_point_est <- getPointEstC(fc_fit,K=10)
