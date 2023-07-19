@@ -1,6 +1,6 @@
-source("forestProcess.r")
+source("Main_functions\\forest_class.R")
 
-load(file="./yaleB10subjects.Rda")
+load(file="High_dimensional_application/yaleB10subjects.Rda")
 
 y<- yaleB10subjects$y
 

@@ -6,7 +6,7 @@ require("matlab")
 
 # plot(eta_star)
 
-load("fmri_labels.RDa")
+load("fMRI_application/fmri_labels.RDa")
 
 
 CN_idx <-  (1:S)[labels=="CN"]
@@ -117,7 +117,7 @@ node_wise_resid_var_LCMI <- sapply(c(1:n),function(i){
 
 
 
-coords<- read.table("centroid.txt")
+coords<- read.table("fMRI_application/centroid.txt")
 
 
 
@@ -330,7 +330,7 @@ ggplot(df3, aes(x = Region, y = Value, fill = Group)) +
 
 
 
-full_roi_names<- read.table("regionname.txt")
+full_roi_names<- read.table("fMRI_application/regionname.txt")
 
 
 
