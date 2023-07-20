@@ -14,7 +14,7 @@ plot(y[,1],y[,2],col=true_membership)
 
 
 
-source("forest_class.R")
+source("Main_functions/forest_class.R")
 
 
 
