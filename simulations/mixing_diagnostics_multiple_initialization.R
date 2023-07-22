@@ -218,5 +218,5 @@ gr_stats2 <- gelman.diag(mcmc_list)
 
 
 
-hist(c(gr_stats$psrf[,1],gr_stats2$psrf[,1]),breaks=30)
+hist(c(gr_stats$psrf[,1],gr_stats2$psrf[,1]),breaks=30, xlab="", ylab="")
 

@@ -1,6 +1,6 @@
 source("Main_functions\\forest_class.R")
 
-load(file="High_dimensional_application/yaleB10subjects.Rda")
+load(file="high_dim_application/yaleB10subjects.Rda")
 
 y<- yaleB10subjects$y
 
@@ -60,19 +60,26 @@ fixedLogS[1:n,1:n]<-  10*Z2 + log(Z2!=0)
 
 fc_fit<- forestClust(Z,useFixedLogS = TRUE, fixedLogS = fixedLogS,n_iter = 500,burnin = 0)
 
-barplot(table(fc_fit$K))
+barplot(table(unlist(fc_fit$K)))
 
-res<- sapply(c(1:20), function(i){
-    fc_fit_point_est <- getPointEstC(fc_fit,K=10)
-    clusteringAccu(fc_fit_point_est,true_membership)
-    })
+# res<- sapply(c(1:20), function(i){
+#     fc_fit_point_est <- getPointEstC(fc_fit,K=10)
+#     clusteringAccu(fc_fit_point_est,true_membership)
+#     })
+
+#mtemp =  coclustering probability
+mtemp <- matrix(0, 640, 640)
+for(i in 1:length(fc_fit$C)){
+  temp <- fc_fit$C[[i]]
+  mtemp <- mtemp + outer(temp, temp, "==")
+}
 
 mean(res)
 quantile(res, c(0.025,0.975))
 
 require("fields")
 
-image.plot(fc_fit$C_mat/500, zlim=c(0,1))
+image.plot(mtemp/length(fc_fit$C), zlim=c(0,1))
 
 
 

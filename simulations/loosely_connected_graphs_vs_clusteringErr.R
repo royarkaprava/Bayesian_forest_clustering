@@ -8,7 +8,7 @@ require("mclust")
 
 require("clusterSim")
 
-do_run = F
+#do_run = F
 
 if(do_run){
   n= 400
@@ -111,14 +111,12 @@ if(do_run){
   
   save(list_res,file="res_uq_vs_lcg_sd01.RDa")
   
-  
+  #experiment(num_concat = 100, sd = 0.1)
 }
 
-experiment(num_concat = 100, sd = 0.1)
-
-
-
-load("Simulation/res_uq_vs_lcg_sd03.RDa")
+if(!do_run){
+  load("simulations/res_uq_vs_lcg_sd03.RDa") 
+}
 
 require("ggplot2")
 require("reshape")
@@ -141,7 +139,7 @@ for(k in 1:3){
 colnames(df)<- c("index", "Score", "Value", "Prob1")
 df$Prob1<- factor(df$Prob1, levels = c(10,100,200))
 
-ggplot(df, aes(x = Score, y = Value, fill= Score)) +
+pl <- ggplot(df, aes(x = Score, y = Value, fill= Score)) +
   facet_grid(~ Prob1) +  geom_boxplot(alpha = 0.5, outlier.shape = "")+
   xlab("") +
   ylab("Value")+theme_bw() + 
@@ -150,4 +148,4 @@ ggplot(df, aes(x = Score, y = Value, fill= Score)) +
         legend.position = "none"
   )+ylim(0,1)
 
-
+print(pl)

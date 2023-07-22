@@ -4,14 +4,14 @@ require("gtools")
 
 setwd("//file.phhp.ufl.edu/data/home/ark007/Documents/GitHub/Bayesian_forest_clustering")
 
-load("fMRI_application/time_series_fmri_std.rda")
+load("multiview_fmri_application/time_series_fmri_std.rda")
 
 S <- length(timeseries_fmri_std)
 S
 
 
 
-load("fMRI_application/fmri_labels.RDa")
+load("multiview_fmri_application/fmri_labels.RDa")
 
 
 

@@ -206,39 +206,39 @@ barplot(table(do.call("c",fc_fit_using_full$K))/500)
 
 
 
-require("dirichletprocess")
-
-dp_model <- DirichletProcessMvnormal(y,alphaPriors = c(1/20, 20))
-dp_fit <- Fit(dp_model, 1000,progressBar = TRUE)
-
-
-
-
-
-dp_cmat<- matrix(0,n_x,n_x)
-
-dp_unique_c<- numeric()
-
-for (i in (501:1000)){
-  C = dp_fit$labelsChain[[i]]
-  dp_cmat = dp_cmat +  outer(C,C,"==")
-  dp_unique_c<- c(dp_unique_c, length(unique(C)))
-}
-
-
-
-
-barplot(table(dp_unique_c))
-
-
-
-# filename= paste("~/dropbox/Apps/Overleaf/spanning_tree_clustering/pdf_figs/penguin_dpmm.pdf")
-
-fc_fit_point_est4 <- getPointEstC( dp_cmat,K=3)
-
-
-# pdf(filename,4,4)
-plot(y[,1] ,y[,2], col =  as.factor(fc_fit_point_est4),xlab=colnames(y)[1],ylab=colnames(y)[2])
-# dev.off()
-
-
+# require("dirichletprocess")
+# 
+# dp_model <- DirichletProcessMvnormal(y,alphaPriors = c(1/20, 20))
+# dp_fit <- Fit(dp_model, 1000,progressBar = TRUE)
+# 
+# 
+# 
+# 
+# 
+# dp_cmat<- matrix(0,n_x,n_x)
+# 
+# dp_unique_c<- numeric()
+# 
+# for (i in (501:1000)){
+#   C = dp_fit$labelsChain[[i]]
+#   dp_cmat = dp_cmat +  outer(C,C,"==")
+#   dp_unique_c<- c(dp_unique_c, length(unique(C)))
+# }
+# 
+# 
+# 
+# 
+# barplot(table(dp_unique_c))
+# 
+# 
+# 
+# # filename= paste("~/dropbox/Apps/Overleaf/spanning_tree_clustering/pdf_figs/penguin_dpmm.pdf")
+# 
+# fc_fit_point_est4 <- getPointEstC( dp_cmat,K=3)
+# 
+# 
+# # pdf(filename,4,4)
+# plot(y[,1] ,y[,2], col =  as.factor(fc_fit_point_est4),xlab=colnames(y)[1],ylab=colnames(y)[2])
+# # dev.off()
+# 
+# 

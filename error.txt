@@ -1,0 +1,9 @@
+uq_high_dimension_clustering.r line 63 error
+
+penguins.R line 237 error
+
+add title in figures
+
+in simulation files, do you need to run the 
+
+experiment() line?

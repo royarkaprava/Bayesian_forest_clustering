@@ -12,7 +12,7 @@ y<- y+ rnorm(n*2, sd=0.1)
 plot(y[,1],y[,2],col=true_membership)
 
 
-source("forest_class.R")
+source("Main_functions/forest_class.R")
 require("kernlab")
 require("mclust")
 

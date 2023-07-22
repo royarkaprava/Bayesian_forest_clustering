@@ -1,17 +1,15 @@
-
+ 
 source("Main_functions/forest_class.R")
 require("kernlab")
 require("aricode")
 require("mclust")
 
 
-
-do_run = F
+#do_run = F
 
 if(do_run){
   n =400
-  prob=c(0.1,0.9)
-  
+  prob=rep(1,6)
   sep_b =5
   
   df =5
@@ -36,24 +34,15 @@ if(do_run){
     mu<- mu+ sep_b
     true_membership<- c(true_membership, rep(k,n_k))
     k<- k+1
-  }         
+  }          
   
   
-  plot(y[,1],y[,2], col=true_membership,xlab="",ylab="",xlim=c(-3,10),ylim=c(-3,10))
+  plot(y[,1],y[,2], col=true_membership,xlab="",ylab="",xlim=c(-3,30),ylim=c(-3,30))
   
-  
-  
-  
-  #source("forest_class.R")
-  
-  forest<- Forest$new()
-  
-  forest$init(y,use_hierachical_prior=TRUE)
   
   
   
   experiment<- function(sep_b=3, n = 400, prob=c(0.3,0.6,0.1), df =5,steps=100,burnin=50){
-    
     
     p <- 2
     
@@ -78,9 +67,10 @@ if(do_run){
     }         
     
     
+    
     forest<- Forest$new()
     
-    forest$init(y,use_hierachical_prior=TRUE)
+    forest$init(y)
     forest$MCMC_run_single_graph(steps,burnin)
     
     trace_C<- forest$trace_C
@@ -93,7 +83,6 @@ if(do_run){
     for(C in trace_C){
       C_mat = C_mat+ 1*outer(C,C,'==')
     }
-    
     
     
     C_point_est<- matchAtoB(getPointEstC(C_mat,K),true_membership)
@@ -110,37 +99,27 @@ if(do_run){
   
   
   
-  experiment(sep_b=5, n = 400, prob=c(0.5,0.5), df =5)
-  
-  
-  
-  
-  
-  
-  
-  res1 <- sapply(c(1:10), function(i) experiment(sep_b=5, n = 400, prob=c(0.5,0.5), df =5))
-  res2 <- sapply(c(1:10), function(i) experiment(sep_b=5, n = 400, prob=c(0.3,0.7), df =5))
-  res3 <- sapply(c(1:10), function(i) experiment(sep_b=5, n = 400, prob=c(0.1,0.9), df =5))
+  res1 <- sapply(c(1:10), function(i) experiment(sep_b=5, n = 400, prob=rep(1,3), df =5))
+  res2 <- sapply(c(1:10), function(i) experiment(sep_b=5, n = 400, prob=rep(1,6), df =5))
+  res3 <- sapply(c(1:10), function(i) experiment(sep_b=5, n = 400, prob=rep(1,9), df =5))
   
   list_res<- list(res1,res2,res3)
   
-  save(list_res,file="res_uq_vs_accu_unbalanced_sepb5.RDa")
-  
-  
+  save(list_res,file="res_uq_vs_accu_numclusters_sepb5.RDa")
   
 }
 
-
-load(file="Simulation/res_uq_vs_accu_unbalanced_sepb5.RDa")
-
+#experiment(sep_b=5, n = 400, prob=rep(1,3), df =5)
 
 
-
-prob_list <- c(0.5,0.3,0.1)
+if(!do_run){
+  load("simulations/res_uq_vs_accu_numclusters_sepb5.RDa")
+}
 
 require("ggplot2")
 require("reshape")
 
+prob_list <- c(3,6,9)
 
 
 df<- data.frame()
@@ -156,15 +135,17 @@ for(k in 1:3){
 }
 
 colnames(df)<- c("index", "Score", "Value", "Prob1")
-df$Prob1<- factor(df$Prob1, levels = c(0.5,0.3,0.1))
+df$Prob1<- factor(df$Prob1, levels = c(3,6,9))
 
-ggplot(df, aes(x = Score, y = Value, fill= Score)) +
+# png("accu_vs_numclusters_sep_b_5.png",800,600,res = 100)
+pl <- ggplot(df, aes(x = Score, y = Value, fill= Score)) +
   facet_grid(~ Prob1) +  geom_boxplot(alpha = 0.5, outlier.shape = "")+
-  xlab("Proportion of Cluster 1") +
+  xlab("") +
   ylab("Value")+theme_bw() + 
   theme(text = element_text(size = 30),axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.x = element_text(vjust = 1, hjust = 9),
         legend.position = "none"
-  )
+  )+ylim(0,1)
+# dev.off()
 
-
+print(pl)
