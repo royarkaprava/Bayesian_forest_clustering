@@ -24,59 +24,59 @@ packageVersion("mclust")
 packageVersion("clusterSim")
 ```
 
-```{r, echo=T}
+```{r, echo=F}
 library(clusterSim)
 ```
 
 ## Figures 2 and S.15 are generated here
 
-```{r, echo=T}
+```{r, echo=F}
 source("compare_eigenvectors.r")
 ```
 
 ## Figures 3 and S.6 are generated here
 
-```{r, echo=T}
+```{r, echo=F}
 source("Uncertainty_Quantification\\uq_near_manifold.r")
 ```
 
 
 ## Run the Forest model for Figures 4 and 5
-```{r, echo=T, warning=FALSE}
+```{r, echo=F, warning=FALSE}
 source("multiview_fmri_application\\fMRI_analysis.r")
 ```
 
 
 ## Figures 4, 5 and S.13 are generated here
-```{r, echo=T, warning=FALSE}
+```{r, echo=F, warning=FALSE}
 source("multiview_fmri_application\\fMRI_analysis_results.r")
 ```
 ## Figure S.1, S.2 and Table S.1 are generated here
 
-```{r, echo=T}
+```{r, echo=F}
 source("Uncertainty_Quantification/uq_high_dimesion_clustering.r")
 ```
 
 ## Figure S.3 is generated here
 
-```{r, echo=T}
+```{r, echo=F}
 source("covariate_dependent_clustering/penguins.r")
 ```
 
 ## Figures S.4, S.5 and S.14 are generated here
 
-```{r, echo=T}
+```{r, echo=F}
 source("Uncertainty_Quantification/uq_mixture_model_data_t_dist.r")
 ```
 
 
 ## Figure S.7, S.8, S.9 are generated here
 
-```{r, echo=T}
+```{r, echo=F}
 do_run = F #To load the saved output and produce the figures or set T to re-run the simulations code before producing the figures
 ```
 
-```{r, echo=T, warning=FALSE}
+```{r, echo=F, warning=FALSE}
 source("simulations/imbalanced_vs_clusteringErr.r")
 ```
 
@@ -90,6 +90,6 @@ source("simulations/loosely_connected_graphs_vs_clusteringErr.r")
 
 ## Figures S.10, S.11, S.12 are generated here
 
-```{r, echo=T}
+```{r, echo=F}
 source("simulations/mixing_diagnostics_multiple_initialization.r")
 ```
